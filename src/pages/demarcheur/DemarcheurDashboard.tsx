@@ -8,7 +8,7 @@ import { userApi } from '../../api/userApi'
 type Tab = 'stats' | 'biens' | 'reservations' | 'profil' | 'verification'
 
 export default function DemarcheurDashboard() {
-  const { user, updateUser } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('stats')
   const [biens, setBiens] = useState<any[]>([])

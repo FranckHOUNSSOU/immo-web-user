@@ -46,8 +46,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!token) return
-    const socket = io(WS_URL, {
-      namespace: '/chat',
+    const socket = io(`${WS_URL}/chat`, {
       auth: { token },
       transports: ['websocket'],
     })
