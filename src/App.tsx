@@ -13,9 +13,12 @@ import ProfilePage from './pages/profile/ProfilePage'
 import EditProfilePage from './pages/profile/EditProfilePage'
 import ChangePasswordPage from './pages/profile/ChangePasswordPage'
 import MesVisitesPage from './pages/visites/MesVisitesPage'
+import SplashPage from './pages/splash/SplashPage'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import OnboardingPage from './pages/auth/OnboardingPage'
+import OnboardingProjetPage from './pages/auth/OnboardingProjetPage'
+import OnboardingDestinationPage from './pages/auth/OnboardingDestinationPage'
 import ProprietaireDashboard from './pages/proprietaire/ProprietaireDashboard'
 import DemarcheurDashboard from './pages/demarcheur/DemarcheurDashboard'
 import NouveauBienPage from './pages/bien/NouveauBienPage'
@@ -27,12 +30,46 @@ function PrivateRoute({ children }: { children: React.ReactElement }) {
   return children
 }
 
+// Page d'accueil avec garde first-launch
+function HomeGuard() {
+  const { isLoggedIn, user } = useAuth()
+  const isOnboarded = localStorage.getItem('rg_onboarded') === 'true'
+
+  if (isLoggedIn) {
+    if (user?.role === 'proprietaire') return <Navigate to="/proprietaire" replace />
+    if (user?.role === 'demarcheur') return <Navigate to="/demarcheur" replace />
+  }
+
+  if (!isLoggedIn && !isOnboarded) {
+    return <Navigate to="/splash" replace />
+  }
+
+  return <HomePage />
+}
+
 function App() {
   return (
     <AuthProvider>
       <Routes>
+        {/* Pages sans layout (standalone) */}
+        <Route path="/splash" element={<SplashPage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/onboarding/projet" element={<OnboardingProjetPage />} />
+        <Route path="/onboarding/destination" element={<OnboardingDestinationPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+
+        {/* Dashboards rôle : sans MainLayout (ont leur propre nav interne) */}
+        <Route path="/proprietaire" element={
+          <PrivateRoute><ProprietaireDashboard /></PrivateRoute>
+        } />
+        <Route path="/demarcheur" element={
+          <PrivateRoute><DemarcheurDashboard /></PrivateRoute>
+        } />
+
+        {/* Pages client avec MainLayout + BottomNav */}
         <Route path="/" element={<MainLayout />}>
-          <Route index element={<HomePage />} />
+          <Route index element={<HomeGuard />} />
           <Route path="biens/:id" element={<BienDetailPage />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="favoris" element={<FavoritesPage />} />
@@ -63,17 +100,6 @@ function App() {
           } />
         </Route>
 
-        {/* Dashboards rôle : sans MainLayout (ont leur propre nav interne) */}
-        <Route path="/proprietaire" element={
-          <PrivateRoute><ProprietaireDashboard /></PrivateRoute>
-        } />
-        <Route path="/demarcheur" element={
-          <PrivateRoute><DemarcheurDashboard /></PrivateRoute>
-        } />
-
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
