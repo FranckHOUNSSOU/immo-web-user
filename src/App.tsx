@@ -58,16 +58,19 @@ function App() {
           <Route path="reservation/:bienId" element={
             <PrivateRoute><ReservationPage /></PrivateRoute>
           } />
-          <Route path="proprietaire" element={
-            <PrivateRoute><ProprietaireDashboard /></PrivateRoute>
-          } />
-          <Route path="demarcheur" element={
-            <PrivateRoute><DemarcheurDashboard /></PrivateRoute>
-          } />
           <Route path="nouveau-bien" element={
             <PrivateRoute><NouveauBienPage /></PrivateRoute>
           } />
         </Route>
+
+        {/* Dashboards rôle : sans MainLayout (ont leur propre nav interne) */}
+        <Route path="/proprietaire" element={
+          <PrivateRoute><ProprietaireDashboard /></PrivateRoute>
+        } />
+        <Route path="/demarcheur" element={
+          <PrivateRoute><DemarcheurDashboard /></PrivateRoute>
+        } />
+
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
