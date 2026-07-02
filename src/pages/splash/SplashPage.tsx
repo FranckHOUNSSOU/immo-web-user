@@ -1,0 +1,149 @@
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
+
+export default function SplashPage() {
+  const navigate = useNavigate()
+  const { isLoggedIn, user } = useAuth()
+
+  useEffect(() => {
+    // Si déjà connecté, aller au bon dashboard
+    if (isLoggedIn) {
+      if (user?.role === 'proprietaire') navigate('/proprietaire', { replace: true })
+      else if (user?.role === 'demarcheur') navigate('/demarcheur', { replace: true })
+      else navigate('/', { replace: true })
+    }
+    // Si déjà passé par l'onboarding → home
+    else if (localStorage.getItem('rg_onboarded') === 'true') {
+      navigate('/', { replace: true })
+    }
+  }, [isLoggedIn, user, navigate])
+
+  const skip = () => {
+    localStorage.setItem('rg_onboarded', 'true')
+    navigate('/', { replace: true })
+  }
+
+  const start = () => {
+    navigate('/onboarding', { replace: true })
+  }
+
+  return (
+    <div
+      className="min-h-dvh flex flex-col relative overflow-hidden"
+      style={{ background: 'linear-gradient(160deg, #0D1B2A 0%, #1B2838 40%, #0F3460 100%)' }}
+    >
+      {/* Cercles décoratifs (pulsent visuellement via CSS) */}
+      <div
+        className="absolute top-[8%] right-[-60px] w-[200px] h-[200px] rounded-full pointer-events-none"
+        style={{ background: 'rgba(75,107,255,0.12)' }}
+      />
+      <div
+        className="absolute top-[18%] left-[-80px] w-[180px] h-[180px] rounded-full pointer-events-none"
+        style={{ background: 'rgba(255,107,53,0.10)' }}
+      />
+
+      {/* Bouton Passer */}
+      <div className="absolute top-0 left-0 right-0 flex justify-end px-5 pt-14 z-10">
+        <button
+          onClick={skip}
+          className="flex items-center gap-1 px-4 py-2 rounded-full text-white text-[13px] font-medium"
+          style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}
+        >
+          Passer
+          <svg className="w-4 h-4 text-white/70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Logo centré */}
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-5">
+          <div
+            className="w-[90px] h-[90px] rounded-[26px] flex items-center justify-center"
+            style={{
+              background: '#4B6BFF',
+              boxShadow: '0 0 40px rgba(75,107,255,0.5)',
+            }}
+          >
+            <svg className="w-11 h-11 text-white" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+          </div>
+          <div className="text-center">
+            <p className="text-white text-[32px] font-bold tracking-tight leading-none">REFUGE</p>
+            <p className="text-white/50 text-sm tracking-[1.5px] mt-1.5 uppercase">L'immobilier au Bénin</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Texte bas + CTA */}
+      <div className="px-7 pb-14 space-y-6">
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-[3px] rounded-full" style={{ background: '#FF6B35' }} />
+            <div className="w-2 h-[3px] rounded-full" style={{ background: 'rgba(255,107,53,0.45)' }} />
+          </div>
+          <h1 className="text-white text-[36px] font-bold leading-[1.15] tracking-tight">
+            Trouvez votre<br />logement idéal
+          </h1>
+          <p className="text-white/60 text-sm leading-relaxed mt-3">
+            Des centaines de logements vérifiés<br />à Cotonou et Abomey-Calavi.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <button
+            onClick={start}
+            className="w-full h-14 rounded-[18px] flex items-center justify-center gap-3 font-bold text-white text-base"
+            style={{ background: '#4B6BFF', boxShadow: '0 4px 20px rgba(75,107,255,0.4)' }}
+          >
+            <span>Commencer</span>
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background: 'rgba(255,255,255,0.2)' }}
+            >
+              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </button>
+
+          {/* Trust badges */}
+          <div className="flex items-center justify-center gap-5 pt-1">
+            <TrustBadge icon="verified" label="Vérifié" color="#22C55E" />
+            <TrustBadge icon="lock" label="Sécurisé" color="#4B6BFF" />
+            <TrustBadge icon="star" label="Fiable" color="#FF6B35" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TrustBadge({ icon, label, color }: { icon: string; label: string; color: string }) {
+  const icons: Record<string, React.ReactElement> = {
+    verified: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+    ),
+    lock: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+    ),
+    star: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth={1}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+      </svg>
+    ),
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      {icons[icon]}
+      <span className="text-white/60 text-xs font-medium">{label}</span>
+    </div>
+  )
+}
