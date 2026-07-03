@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext'
 import { biensApi } from '../../api/biensApi'
 import { favoritesApi } from '../../api/favoritesApi'
 import BienCard from '../../components/BienCard'
-import SearchModal from '../../components/SearchModal'
 
 type Category = { key: string; label: string }
 const CATEGORIES: Category[] = [
@@ -68,7 +67,7 @@ export default function HomePage() {
   const { isLoggedIn, user } = useAuth()
   const navigate = useNavigate()
   const [category, setCategory] = useState('Tous')
-  const [search] = useState('')
+  const [search, setSearch] = useState('')
   const [biens, setBiens] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [favIds, setFavIds] = useState<Set<number>>(new Set())
@@ -120,14 +119,6 @@ export default function HomePage() {
     })
   }
 
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [searchInitial, setSearchInitial] = useState('')
-
-  const openSearch = (initial = '') => {
-    setSearchInitial(initial)
-    setSearchOpen(true)
-  }
-
   const firstName = user?.prenom || user?.nom || 'vous'
   const initials = `${user?.prenom?.[0] || ''}${user?.nom?.[0] || ''}`.toUpperCase()
   const catLabel = CATEGORIES.find(c => c.key === category)?.label || 'Annonces'
@@ -158,14 +149,16 @@ export default function HomePage() {
             )}
           </button>
         </div>
-        <button
-          onClick={() => openSearch(search)}
-          className="w-full bg-white rounded-2xl flex items-center px-4 py-3 gap-3 shadow-card text-left"
-        >
+        <div className="w-full bg-white rounded-2xl flex items-center px-4 py-3 gap-3 shadow-card">
           <SearchIcon />
-          <span className="flex-1 text-sm text-text-grey">{search || 'Rechercher une ville, quartier…'}</span>
-          <span className="bg-primary text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex-shrink-0">Filtres</span>
-        </button>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher une ville, quartier…"
+            className="flex-1 text-sm text-text-dark bg-transparent outline-none placeholder:text-text-grey"
+          />
+        </div>
       </div>
 
       {/* ── DESKTOP hero pleine largeur (caché sur mobile) ── */}
@@ -186,15 +179,17 @@ export default function HomePage() {
             Maisons, appartements, terrains — achetez ou louez en toute confiance à Cotonou, Abomey-Calavi et partout au Bénin.
           </p>
           <div className="flex items-center gap-3 w-full max-w-2xl">
-            <button
-              onClick={() => openSearch(search)}
-              className="bg-white rounded-2xl flex items-center gap-3 px-4 py-3.5 shadow-2xl text-left flex-1"
-            >
+            <div className="bg-white rounded-2xl flex items-center gap-3 px-4 py-3.5 shadow-2xl flex-1">
               <SearchIcon />
-              <span className="text-sm text-text-grey">Ville, quartier, type de bien…</span>
-            </button>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Ville, quartier, type de bien…"
+                className="flex-1 text-sm text-text-dark bg-transparent outline-none placeholder:text-text-grey"
+              />
+            </div>
             <button
-              onClick={() => openSearch(search)}
               className="flex items-center gap-2 px-6 py-3.5 rounded-2xl text-white font-semibold text-sm flex-shrink-0 hover:opacity-90 transition-opacity"
               style={{ background: 'linear-gradient(135deg, #4B6BFF 0%, #7B4BFF 100%)' }}
             >
@@ -279,7 +274,6 @@ export default function HomePage() {
         )}
       </div>
 
-      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} initialSearch={searchInitial} />
     </div>
   )
 }
