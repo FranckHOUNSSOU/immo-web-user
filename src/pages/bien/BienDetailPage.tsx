@@ -316,7 +316,7 @@ export default function BienDetailPage() {
                 className="w-full py-4 rounded-xl font-bold text-white text-sm shadow-btn transition-opacity hover:opacity-90"
                 style={{ background: 'linear-gradient(135deg, #4B6BFF 0%, #7B4BFF 100%)' }}
               >
-                {isLocation ? '📅 Réserver une visite' : '📅 Demander une visite'}
+                {isLocation ? 'Réserver une visite' : 'Demander une visite'}
               </button>
 
               <p className="text-xs text-text-grey text-center mt-3">
