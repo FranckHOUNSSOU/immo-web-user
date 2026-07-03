@@ -67,13 +67,13 @@ export default function LoginPage() {
           </h1>
           <div className="space-y-3">
             {[
-              { icon: '🏠', text: 'Maisons, appartements, terrains vérifiés' },
-              { icon: '📅', text: 'Réservez des visites en quelques clics' },
-              { icon: '💬', text: 'Échangez directement avec les propriétaires' },
-            ].map((item, i) => (
+              'Maisons, appartements, terrains vérifiés',
+              'Réservez des visites en quelques clics',
+              'Échangez directement avec les propriétaires',
+            ].map((text, i) => (
               <div key={i} className="flex items-center gap-3">
-                <span className="text-lg">{item.icon}</span>
-                <p className="text-white/70 text-sm">{item.text}</p>
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#7B9BFF' }} />
+                <p className="text-white/70 text-sm">{text}</p>
               </div>
             ))}
           </div>
