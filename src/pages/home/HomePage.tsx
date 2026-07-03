@@ -45,11 +45,6 @@ const SearchIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
   </svg>
 )
-const CloseIcon = () => (
-  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-  </svg>
-)
 const PersonIcon = () => (
   <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -73,7 +68,7 @@ export default function HomePage() {
   const { isLoggedIn, user } = useAuth()
   const navigate = useNavigate()
   const [category, setCategory] = useState('Tous')
-  const [search, setSearch] = useState('')
+  const [search] = useState('')
   const [biens, setBiens] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [favIds, setFavIds] = useState<Set<number>>(new Set())
