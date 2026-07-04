@@ -9,7 +9,7 @@ export default function MainLayout() {
       <TopNav />
 
       {/* Content — espace bas pour bottom nav sur mobile uniquement */}
-      <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
+      <div className="flex-1 overflow-y-auto pb-20 md:pb-0 md:pt-16">
         <Outlet />
       </div>
 
