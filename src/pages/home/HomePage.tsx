@@ -167,7 +167,7 @@ export default function HomePage() {
       </div>
 
       {/* ── DESKTOP hero image pleine largeur ── */}
-      <div className="hidden md:flex relative w-full flex-col justify-end" style={{ minHeight: '88vh' }}>
+      <div className="hidden md:flex relative w-full flex-col justify-end -mt-16" style={{ minHeight: '88vh' }}>
         {/* Image de fond */}
         <img src={HERO_IMG} alt="" className="absolute inset-0 w-full h-full object-cover" />
         {/* Overlay sombre */}
