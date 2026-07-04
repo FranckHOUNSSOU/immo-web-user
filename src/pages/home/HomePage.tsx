@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { biensApi } from '../../api/biensApi'
 import { favoritesApi } from '../../api/favoritesApi'
 import BienCard from '../../components/BienCard'
-const HERO_IMG = 'https://images.unsplash.com/photo-1600121848594-d8644e57abcd?auto=format&fit=crop&w=1920&q=80'
+const HERO_IMG = 'https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=1920'
 
 type Category = { key: string; label: string }
 const CATEGORIES: Category[] = [
