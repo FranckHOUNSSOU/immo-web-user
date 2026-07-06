@@ -89,8 +89,12 @@ export default function RegisterPage() {
         {/* Logo */}
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-[13px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#4B6BFF,#7B4BFF)', boxShadow: '0 4px 12px rgba(75,107,255,0.4)' }}>
-            <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+              <path d="M2 15C1 9 5 2 12 2C19 2 23 8 23 13" stroke="white" strokeWidth="1.6" strokeLinecap="round"/>
+              <path d="M1.5 11C2 17 6 22 12 22C18 22 22 18 21.5 13" stroke="white" strokeWidth="1.6" strokeLinecap="round"/>
+              <rect x="6" y="9" width="2.5" height="11" fill="white"/>
+              <rect x="10.5" y="5" width="3" height="15" fill="white"/>
+              <rect x="15" y="7" width="2.5" height="13" fill="white"/>
             </svg>
           </div>
           <span className="text-white font-bold text-xl tracking-tight">REFUGE</span>
