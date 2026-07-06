@@ -52,14 +52,14 @@ export default function ConversationsPage() {
   return (
     <div className="min-h-full bg-app-bg">
       {/* Header */}
-      <div className="bg-white px-4 pt-12 pb-3 border-b border-divider">
+      <div className="px-4 pt-12 pb-3 border-b border-divider" style={{ background: 'rgba(245,245,247,0.88)', backdropFilter: 'blur(32px)', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
         <h1 className="text-lg font-bold text-text-dark">Messages</h1>
       </div>
 
       {loading ? (
         <div className="px-4 py-3 space-y-0">
           {[1, 2, 3].map(n => (
-            <div key={n} className="h-[72px] bg-white animate-pulse border-b border-divider" />
+            <div key={n} className="skeleton h-[72px] rounded-xl mb-1" />
           ))}
         </div>
       ) : error ? (
@@ -100,7 +100,7 @@ export default function ConversationsPage() {
               <div key={conv.id}>
                 <button
                   onClick={() => navigate(`/conversations/${conv.id}`)}
-                  className="w-full flex items-center gap-4 px-4 py-4 active:bg-surface-g transition-colors text-left"
+                  className="w-full flex items-center gap-4 px-4 py-4 active:bg-black/5 transition-colors text-left"
                 >
                   {/* Avatar gradient rectangulaire – fidèle Flutter */}
                   {other?.photo_profil ? (

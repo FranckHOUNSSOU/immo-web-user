@@ -123,10 +123,10 @@ export default function MesVisitesPage() {
   return (
     <div className="min-h-dvh bg-app-bg">
       {/* Header */}
-      <div className="bg-white border-b border-divider">
+      <div style={{ background: 'rgba(245,245,247,0.88)', backdropFilter: 'blur(32px)', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
         <div className="w-full px-4 md:px-16">
           <div className="flex items-center gap-3 pt-12 md:pt-6 pb-3">
-            <button onClick={() => navigate(-1)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-surface-g">
+            <button onClick={() => navigate(-1)} className="glass-btn w-9 h-9 flex items-center justify-center rounded-xl">
               <svg className="w-5 h-5 text-text-dark" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
@@ -151,7 +151,7 @@ export default function MesVisitesPage() {
       <div className="w-full px-4 md:px-16 py-4">
         {loading ? (
           <div className="space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
-            {[1, 2, 3, 4].map(n => <div key={n} className="bg-white rounded-2xl h-28 animate-pulse" />)}
+            {[1, 2, 3, 4].map(n => <div key={n} className="skeleton rounded-2xl h-28" />)}
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
@@ -173,7 +173,7 @@ export default function MesVisitesPage() {
       {/* Payment modal */}
       {showPay && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowPay(null)}>
-          <div className="bg-white rounded-t-3xl p-6 w-full" onClick={e => e.stopPropagation()}>
+          <div className="glass-strong rounded-t-3xl p-6 w-full" onClick={e => e.stopPropagation()}>
             <div className="w-12 h-1 bg-divider rounded-full mx-auto mb-5" />
             <h3 className="font-bold text-text-dark mb-1">Payer la visite</h3>
             <p className="text-sm text-text-grey mb-4">
@@ -201,7 +201,7 @@ export default function MesVisitesPage() {
               value={phoneOp}
               onChange={e => setPhoneOp(e.target.value)}
               placeholder="Numéro Mobile Money"
-              className="w-full bg-surface-g rounded-xl px-4 py-3 text-sm outline-none focus:border-primary border border-transparent mb-4"
+              className="glass-input w-full rounded-xl px-4 py-3 text-sm outline-none focus:border-primary mb-4"
             />
             <button
               onClick={handlePayer}
@@ -218,7 +218,7 @@ export default function MesVisitesPage() {
       {/* Confirm dialog */}
       {confirmDialog && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-5" onClick={() => setConfirmDialog(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+          <div className="glass-strong rounded-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-text-dark text-base mb-2">{confirmDialog.title}</h3>
             <p className="text-sm text-text-grey leading-relaxed mb-5">{confirmDialog.body}</p>
             <div className="flex gap-3">
@@ -255,11 +255,8 @@ function VisiteCard({ visite: v, onAnnuler, onAccepterCP, onRefuserCP, onIntegra
 
   return (
     <div
-      className="bg-white rounded-2xl p-4"
-      style={{
-        boxShadow: '0 3px 10px rgba(0,0,0,0.05)',
-        border: isCP ? `1.5px solid rgba(230,126,34,0.4)` : 'none',
-      }}
+      className="glass-card rounded-2xl p-4"
+      style={{ border: isCP ? `1.5px solid rgba(230,126,34,0.4)` : undefined }}
     >
       {/* Top row */}
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -399,3 +396,4 @@ function VisiteCard({ visite: v, onAnnuler, onAccepterCP, onRefuserCP, onIntegra
     </div>
   )
 }
+

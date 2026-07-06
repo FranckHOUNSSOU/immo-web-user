@@ -84,7 +84,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── Colonne droite — formulaire ── */}
-      <div className="flex-1 flex flex-col bg-[#F4F6FA] md:bg-white">
+      <div className="flex-1 flex flex-col bg-app-bg md:bg-app-bg">
 
         {/* Header mobile uniquement */}
         <div
@@ -144,7 +144,7 @@ export default function LoginPage() {
                 <select
                   value={countryCode}
                   onChange={e => setCountryCode(e.target.value)}
-                  className="bg-white border border-divider rounded-xl px-3 py-3.5 text-sm font-medium text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                  className="glass-input rounded-xl px-3 py-3.5 text-sm font-medium text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                 >
                   {COUNTRY_CODES.map(c => (
                     <option key={c.code} value={c.code}>{c.label}</option>
@@ -156,7 +156,7 @@ export default function LoginPage() {
                   onChange={e => setPhone(e.target.value)}
                   placeholder="97 00 00 00"
                   autoComplete="tel"
-                  className="flex-1 bg-white border border-divider rounded-xl px-4 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                  className="flex-1 glass-input rounded-xl px-4 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                 />
               </div>
             </div>
@@ -175,7 +175,7 @@ export default function LoginPage() {
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
                   autoComplete="current-password"
-                  className="w-full bg-white border border-divider rounded-xl pl-11 pr-12 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                  className="w-full glass-input rounded-xl pl-11 pr-12 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                 />
                 <button
                   type="button"

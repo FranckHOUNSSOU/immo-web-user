@@ -29,8 +29,8 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="min-h-full bg-app-bg">
-      <div className="bg-white px-4 pt-12 pb-4 flex items-center gap-3 border-b border-divider">
-        <button onClick={() => navigate(-1)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-surface-g">
+      <div className="px-4 pt-12 pb-4 flex items-center gap-3 border-b" style={{ background: 'rgba(245,245,247,0.88)', backdropFilter: 'blur(32px)', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+        <button onClick={() => navigate(-1)} className="glass-btn w-9 h-9 flex items-center justify-center rounded-xl">
           <svg className="w-5 h-5 text-text-dark" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
@@ -54,20 +54,20 @@ export default function ChangePasswordPage() {
           <div>
             <label className="text-sm font-semibold text-text-dark mb-2 block">Mot de passe actuel</label>
             <input type="password" value={current} onChange={e => setCurrent(e.target.value)} required
-              className="w-full bg-white border border-divider rounded-xl px-4 py-3 text-sm outline-none focus:border-primary" />
+              className="glass-input w-full rounded-xl px-4 py-3 text-sm outline-none focus:border-primary" />
           </div>
 
           <div>
             <label className="text-sm font-semibold text-text-dark mb-2 block">Nouveau mot de passe</label>
             <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} required
               placeholder="Min. 6 caractères"
-              className="w-full bg-white border border-divider rounded-xl px-4 py-3 text-sm outline-none focus:border-primary" />
+              className="glass-input w-full rounded-xl px-4 py-3 text-sm outline-none focus:border-primary" />
           </div>
 
           <div>
             <label className="text-sm font-semibold text-text-dark mb-2 block">Confirmer</label>
             <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required
-              className="w-full bg-white border border-divider rounded-xl px-4 py-3 text-sm outline-none focus:border-primary" />
+              className="glass-input w-full rounded-xl px-4 py-3 text-sm outline-none focus:border-primary" />
           </div>
 
           <button type="submit" disabled={loading}
