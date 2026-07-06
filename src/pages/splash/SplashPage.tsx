@@ -37,8 +37,12 @@ export default function SplashPage() {
         <div className="flex items-center justify-between px-7 md:px-16 pt-14">
           <div className="flex items-center gap-3 anim-slide-down">
             <div className="w-11 h-11 rounded-[13px] flex items-center justify-center anim-bounce-in" style={{ background: '#4B6BFF', boxShadow: '0 0 24px rgba(75,107,255,0.5)' }}>
-              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+                <path d="M2 15C1 9 5 2 12 2C19 2 23 8 23 13" stroke="white" strokeWidth="1.6" strokeLinecap="round"/>
+                <path d="M1.5 11C2 17 6 22 12 22C18 22 22 18 21.5 13" stroke="white" strokeWidth="1.6" strokeLinecap="round"/>
+                <rect x="6" y="9" width="2.5" height="11" fill="white"/>
+                <rect x="10.5" y="5" width="3" height="15" fill="white"/>
+                <rect x="15" y="7" width="2.5" height="13" fill="white"/>
               </svg>
             </div>
             <span className="text-white font-bold text-xl tracking-tight">REFUGE</span>

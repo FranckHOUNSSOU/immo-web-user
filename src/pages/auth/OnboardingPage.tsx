@@ -116,8 +116,12 @@ export default function OnboardingPage() {
           ) : (
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#4B6BFF' }}>
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                  <path d="M2 15C1 9 5 2 12 2C19 2 23 8 23 13" stroke="white" strokeWidth="1.7" strokeLinecap="round"/>
+                  <path d="M1.5 11C2 17 6 22 12 22C18 22 22 18 21.5 13" stroke="white" strokeWidth="1.7" strokeLinecap="round"/>
+                  <rect x="6" y="9" width="2.5" height="11" fill="white"/>
+                  <rect x="10.5" y="5" width="3" height="15" fill="white"/>
+                  <rect x="15" y="7" width="2.5" height="13" fill="white"/>
                 </svg>
               </div>
               <span className="text-white font-bold text-base tracking-tight">REFUGE</span>
