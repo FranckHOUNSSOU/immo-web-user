@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import logoUrl from '../assets/logo.png'
 
 const NAV_ITEMS = [
   { path: '/',              label: 'Accueil',  authRequired: false },
@@ -61,15 +62,7 @@ export default function TopNav() {
 
         {/* Logo */}
         <button onClick={() => navigate('/')} className="flex items-center gap-2.5 flex-shrink-0">
-          <div className="w-9 h-9 rounded-[10px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#4B6BFF,#7B4BFF)', boxShadow: '0 4px 12px rgba(75,107,255,0.3)' }}>
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-              <path d="M2 15C1 9 5 2 12 2C19 2 23 8 23 13" stroke="white" strokeWidth="1.6" strokeLinecap="round"/>
-              <path d="M1.5 11C2 17 6 22 12 22C18 22 22 18 21.5 13" stroke="white" strokeWidth="1.6" strokeLinecap="round"/>
-              <rect x="6" y="9" width="2.5" height="11" fill="white"/>
-              <rect x="10.5" y="5" width="3" height="15" fill="white"/>
-              <rect x="15" y="7" width="2.5" height="13" fill="white"/>
-            </svg>
-          </div>
+          <img src={logoUrl} alt="REFUGE" style={{ width: 36, height: 36, objectFit: 'contain' }} />
           <span className="font-bold text-lg tracking-tight" style={{ color: '#1D1D1F' }}>REFUGE</span>
         </button>
 
