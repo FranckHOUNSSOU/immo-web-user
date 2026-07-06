@@ -57,7 +57,7 @@ export default function FavoritesPage() {
 
         {!isLoggedIn ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-24 h-24 rounded-full flex items-center justify-center mb-6" style={{ background: 'linear-gradient(135deg, #1A1A2E, #0F3460)' }}>
+            <div className="w-24 h-24 rounded-full flex items-center justify-center mb-6" style={{ background: 'rgba(75,107,255,0.10)' }}>
               <svg className="w-12 h-12 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
@@ -78,7 +78,7 @@ export default function FavoritesPage() {
         ) : loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
             {[1, 2, 3, 4, 5, 6].map(n => (
-              <div key={n} className="bg-white rounded-2xl h-52 md:h-64 animate-pulse" />
+              <div key={n} className="skeleton rounded-2xl h-52 md:h-64" />
             ))}
           </div>
 

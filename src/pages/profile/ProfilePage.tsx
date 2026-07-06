@@ -125,7 +125,7 @@ function MenuItem({ icon, label, onClick, showDivider = true }: MenuItemProps) {
     <>
       <button
         onClick={onClick}
-        className="w-full flex items-center gap-3.5 px-4 py-3.5 active:bg-surface-g transition-colors"
+        className="w-full flex items-center gap-3.5 px-4 py-3.5 active:bg-black/5 transition-colors"
       >
         {icon}
         <span className="flex-1 text-left text-sm text-text-dark font-medium">{label}</span>
@@ -218,7 +218,7 @@ export default function ProfilePage() {
   )
 
   const MenuBlock = () => (
-    <div className="bg-white rounded-[16px] overflow-hidden">
+    <div className="glass-card rounded-[16px] overflow-hidden">
       <MenuItem icon={<PersonMenuIcon />} label="Modifier le profil" onClick={() => navigate('/profil/edit')} />
       <MenuItem icon={<LockMenuIcon />}   label="Sécurité & Mot de passe" onClick={() => navigate('/profil/password')} />
       <MenuItem icon={<ReceiptMenuIcon />} label="Historique des transactions" onClick={() => {}} />
@@ -228,7 +228,7 @@ export default function ProfilePage() {
 
   const VisiteActiveBlock = () => (
     visiteActive ? (
-      <div className="bg-white rounded-[14px] p-3.5 flex items-center gap-3" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+      <div className="glass-card rounded-[14px] p-3.5 flex items-center gap-3">
         <div className="w-[42px] h-[42px] rounded-[11px] bg-primary/10 flex items-center justify-center flex-shrink-0">
           <EyeActiveIcon />
         </div>
@@ -253,7 +253,7 @@ export default function ProfilePage() {
       <div className="md:hidden">
         <div className="flex items-center justify-between px-5 pt-12 pb-4">
           <h1 className="text-xl font-bold text-text-dark">Profil</h1>
-          <div className="w-[38px] h-[38px] bg-surface-g rounded-[10px] flex items-center justify-center">
+          <div className="glass-btn w-[38px] h-[38px] rounded-[10px] flex items-center justify-center">
             <SettingsIcon />
           </div>
         </div>
@@ -295,7 +295,7 @@ export default function ProfilePage() {
 
           {/* Left panel */}
           <div className="space-y-4">
-            <div className="bg-white rounded-2xl p-6 flex flex-col items-center text-center shadow-card">
+            <div className="glass-card rounded-2xl p-6 flex flex-col items-center text-center">
               <AvatarBlock size={100} />
               <h2 className="text-lg font-bold text-text-dark mt-4">{fullName}</h2>
               {(apiUser?.email || user.email) && <p className="text-sm text-text-grey mt-1">{apiUser?.email || user.email}</p>}
@@ -327,15 +327,15 @@ export default function ProfilePage() {
 
             {/* Visite active */}
             {isLoading ? (
-              <div className="bg-white rounded-2xl p-6 flex justify-center"><div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
+              <div className="glass-card rounded-2xl p-6 flex justify-center"><div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
             ) : visiteActive ? (
-              <div className="bg-white rounded-2xl p-5 shadow-card">
+              <div className="glass-card rounded-2xl p-5">
                 <h3 className="font-bold text-text-dark mb-3">Visite en cours</h3>
                 <VisiteActiveBlock />
               </div>
             ) : (
-              <div className="bg-white rounded-2xl p-6 text-center">
-                <div className="w-14 h-14 rounded-xl bg-surface-g flex items-center justify-center mx-auto mb-3">
+              <div className="glass-card rounded-2xl p-6 text-center">
+                <div className="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(75,107,255,0.10)' }}>
                   <svg className="w-7 h-7 text-text-grey" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 </div>
                 <p className="text-text-grey text-sm">Aucune visite en cours</p>
@@ -343,7 +343,7 @@ export default function ProfilePage() {
             )}
 
             {/* Compte info */}
-            <div className="bg-white rounded-2xl p-5 shadow-card">
+            <div className="glass-card rounded-2xl p-5">
               <h3 className="font-bold text-text-dark mb-4">Informations du compte</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>

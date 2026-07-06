@@ -50,7 +50,7 @@ export default function BienDetailPage() {
   )
   if (error || !bien) return (
     <div className="min-h-dvh flex flex-col items-center justify-center gap-4 px-6 bg-app-bg">
-      <div className="w-20 h-20 rounded-full bg-surface-g flex items-center justify-center mb-2">
+      <div className="w-20 h-20 rounded-full flex items-center justify-center mb-2" style={{ background: 'rgba(75,107,255,0.10)' }}>
         <svg className="w-10 h-10 text-text-grey" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -90,12 +90,12 @@ export default function BienDetailPage() {
     <div className="min-h-dvh bg-app-bg pb-28 md:pb-0">
 
       {/* ── MOBILE header / galerie ── */}
-      <div className="md:hidden relative h-72 bg-surface-g">
+      <div className="md:hidden relative h-72" style={{ background: 'rgba(0,0,0,0.04)' }}>
         {allUrls.length > 0 ? (
           <img src={allUrls[photoIdx]} alt="photo" className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#1A1A2E,#0F3460)' }}>
-            <svg className="w-20 h-20 text-white/30" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
+          <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.04)' }}>
+            <svg className="w-20 h-20 text-text-grey/30" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
           </div>
@@ -135,12 +135,12 @@ export default function BienDetailPage() {
 
           {/* ── Galerie desktop ── */}
           <div>
-            <div className="relative rounded-2xl overflow-hidden bg-surface-g" style={{ height: 480 }}>
+            <div className="relative rounded-2xl overflow-hidden" style={{ height: 480, background: 'rgba(0,0,0,0.04)' }}>
               {allUrls.length > 0 ? (
                 <img src={allUrls[photoIdx]} alt="photo" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#1A1A2E,#0F3460)' }}>
-                  <svg className="w-24 h-24 text-white/20" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
+                <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.04)' }}>
+                  <svg className="w-24 h-24 text-text-grey/30" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                   </svg>
                 </div>
@@ -211,7 +211,7 @@ export default function BienDetailPage() {
                   {bien.pieces && bien.pieces.length > 0 ? (
                     <div className="grid grid-cols-3 gap-3">
                       {bien.pieces.map((p: any) => (
-                        <div key={p.id} className="bg-surface-g rounded-xl p-3.5">
+                        <div key={p.id} className="glass-card rounded-xl p-3.5">
                           <p className="text-sm font-semibold text-text-dark">{p.nom}</p>
                           {p.surface > 0 && <p className="text-xs text-text-grey mt-0.5">{p.surface} m²</p>}
                         </div>
@@ -255,13 +255,13 @@ export default function BienDetailPage() {
 
           {/* ── Panneau infos sticky desktop ── */}
           <div className="sticky top-20">
-            <div className="bg-white rounded-2xl p-6 shadow-card">
+            <div className="glass-card rounded-2xl p-6">
               {/* Badges */}
               <div className="flex gap-2 mb-4">
                 <span className={`px-3 py-1.5 rounded-full text-xs font-bold text-white ${isLocation ? 'bg-primary' : 'bg-secondary'}`}>
                   {isLocation ? 'À LOUER' : 'À VENDRE'}
                 </span>
-                <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-surface-g text-text-dark">
+                <span className="px-3 py-1.5 rounded-full text-xs font-bold glass-btn text-text-dark">
                   {typeLabel}
                 </span>
               </div>
@@ -334,7 +334,7 @@ export default function BienDetailPage() {
             <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${isLocation ? 'bg-primary' : 'bg-secondary'}`}>
               {isLocation ? 'À LOUER' : 'À VENDRE'}
             </span>
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-surface-g text-text-dark">{typeLabel}</span>
+            <span className="px-3 py-1 rounded-full text-xs font-bold glass-btn text-text-dark">{typeLabel}</span>
           </div>
           <p className="text-2xl font-bold text-text-dark">
             {prix} FCFA{isLocation && <span className="text-base font-medium text-text-grey">/mois</span>}
@@ -344,7 +344,7 @@ export default function BienDetailPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl p-4 flex items-start gap-3">
+        <div className="glass-card rounded-2xl p-4 flex items-start gap-3">
           <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
             <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           </div>
@@ -355,18 +355,18 @@ export default function BienDetailPage() {
         </div>
 
         {bien.description && (
-          <div className="bg-white rounded-2xl p-4">
+          <div className="glass-card rounded-2xl p-4">
             <h3 className="font-bold text-text-dark text-sm mb-2">Description</h3>
             <p className="text-sm text-text-grey leading-relaxed">{bien.description}</p>
           </div>
         )}
 
         {bien.pieces && bien.pieces.length > 0 && (
-          <div className="bg-white rounded-2xl p-4">
+          <div className="glass-card rounded-2xl p-4">
             <h3 className="font-bold text-text-dark text-sm mb-3">Pièces ({bien.pieces.length})</h3>
             <div className="grid grid-cols-2 gap-2">
               {bien.pieces.map((p: any) => (
-                <div key={p.id} className="bg-surface-g rounded-xl p-3">
+                <div key={p.id} className="glass-card rounded-xl p-3">
                   <p className="text-sm font-semibold text-text-dark">{p.nom}</p>
                   {p.surface > 0 && <p className="text-xs text-text-grey">{p.surface} m²</p>}
                 </div>
@@ -376,7 +376,7 @@ export default function BienDetailPage() {
         )}
 
         {ameniteLabels.length > 0 && (
-          <div className="bg-white rounded-2xl p-4">
+          <div className="glass-card rounded-2xl p-4">
             <h3 className="font-bold text-text-dark text-sm mb-3">Aménités</h3>
             <div className="flex flex-wrap gap-2">
               {ameniteLabels.map((a, i) => (
@@ -388,7 +388,7 @@ export default function BienDetailPage() {
       </div>
 
       {/* CTA mobile fixe */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-divider px-4 py-3 safe-bottom">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 px-4 py-3 safe-bottom" style={{ background: 'rgba(245,245,247,0.90)', backdropFilter: 'blur(32px)', borderTop: '1px solid rgba(0,0,0,0.07)' }}>
         <button
           onClick={() => { if (!isLoggedIn) { navigate('/login'); return } navigate(`/reservation/${bien.id}`) }}
           className="w-full py-4 rounded-xl font-bold text-white shadow-btn"

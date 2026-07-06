@@ -95,8 +95,8 @@ export default function ChatPage() {
   return (
     <div className="h-dvh flex flex-col bg-app-bg">
       {/* Header */}
-      <div className="bg-white px-4 pt-12 pb-3 flex items-center gap-3 border-b border-divider flex-shrink-0">
-        <button onClick={() => navigate('/conversations')} className="w-9 h-9 flex items-center justify-center rounded-xl bg-surface-g">
+      <div className="px-4 pt-12 pb-3 flex items-center gap-3 border-b flex-shrink-0" style={{ background: 'rgba(245,245,247,0.88)', backdropFilter: 'blur(32px)', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+        <button onClick={() => navigate('/conversations')} className="glass-btn w-9 h-9 flex items-center justify-center rounded-xl">
           <svg className="w-5 h-5 text-text-dark" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
@@ -135,7 +135,7 @@ export default function ChatPage() {
               <div className={`max-w-[78%] px-4 py-2.5 rounded-2xl ${
                 isMe
                   ? 'bg-primary text-white rounded-br-sm'
-                  : 'bg-white text-text-dark rounded-bl-sm shadow-sm'
+                  : 'glass-card text-text-dark rounded-bl-sm'
               }`}>
                 <p className="text-sm leading-relaxed">{msg.contenu}</p>
                 <p className={`text-xs mt-1 ${isMe ? 'text-white/60' : 'text-text-grey'}`}>
@@ -149,14 +149,14 @@ export default function ChatPage() {
       </div>
 
       {/* Input */}
-      <div className="bg-white border-t border-divider px-4 py-3 flex items-end gap-3 safe-bottom flex-shrink-0">
+      <div className="px-4 py-3 flex items-end gap-3 safe-bottom flex-shrink-0" style={{ background: 'rgba(245,245,247,0.88)', backdropFilter: 'blur(32px)', borderTop: '1px solid rgba(0,0,0,0.07)' }}>
         <textarea
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKey}
           placeholder="Écrire un message…"
           rows={1}
-          className="flex-1 bg-surface-g rounded-2xl px-4 py-2.5 text-sm outline-none resize-none max-h-28 leading-relaxed"
+          className="glass-input flex-1 rounded-2xl px-4 py-2.5 text-sm outline-none resize-none max-h-28 leading-relaxed"
           style={{ minHeight: '42px' }}
         />
         <button

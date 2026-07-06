@@ -122,7 +122,7 @@ export default function RegisterPage() {
       </div>
 
       {/* ── Colonne droite — formulaire ── */}
-      <div className="flex-1 flex flex-col bg-[#F4F6FA] md:bg-white">
+      <div className="flex-1 flex flex-col bg-app-bg md:bg-app-bg">
 
         {/* Header mobile uniquement */}
         <div
@@ -208,7 +208,7 @@ export default function RegisterPage() {
                       className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left"
                       style={{
                         borderColor: role === r.key ? '#4B6BFF' : '#E5E7EB',
-                        background:  role === r.key ? 'rgba(75,107,255,0.06)' : 'white',
+                        background:  role === r.key ? 'rgba(75,107,255,0.06)' : 'rgba(255,255,255,0.70)',
                       }}
                     >
                       <div style={{ color: role === r.key ? '#4B6BFF' : '#9CA3AF' }}>
@@ -254,7 +254,7 @@ export default function RegisterPage() {
                       onChange={e => setNom(e.target.value)}
                       placeholder="Dupont"
                       required
-                      className="w-full bg-white border border-divider rounded-xl px-4 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                      className="w-full glass-input rounded-xl px-4 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                     />
                   </div>
                   <div className="flex-1">
@@ -264,7 +264,7 @@ export default function RegisterPage() {
                       onChange={e => setPrenom(e.target.value)}
                       placeholder="Jean"
                       required
-                      className="w-full bg-white border border-divider rounded-xl px-4 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                      className="w-full glass-input rounded-xl px-4 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                     />
                   </div>
                 </div>
@@ -275,7 +275,7 @@ export default function RegisterPage() {
                     <select
                       value={countryCode}
                       onChange={e => setCountryCode(e.target.value)}
-                      className="bg-white border border-divider rounded-xl px-3 py-3.5 text-sm font-medium text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                      className="glass-input rounded-xl px-3 py-3.5 text-sm font-medium text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                     >
                       {COUNTRY_CODES.map(c => (
                         <option key={c.code} value={c.code}>{c.label}</option>
@@ -286,7 +286,7 @@ export default function RegisterPage() {
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
                       placeholder="97 00 00 00"
-                      className="flex-1 bg-white border border-divider rounded-xl px-4 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                      className="flex-1 glass-input rounded-xl px-4 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                     />
                   </div>
                 </div>
@@ -298,7 +298,7 @@ export default function RegisterPage() {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="email@exemple.com"
-                    className="w-full bg-white border border-divider rounded-xl px-4 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                    className="w-full glass-input rounded-xl px-4 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                   />
                 </div>
 
@@ -316,7 +316,7 @@ export default function RegisterPage() {
                       onChange={e => setPassword(e.target.value)}
                       placeholder="Min. 6 caractères"
                       required
-                      className="w-full bg-white border border-divider rounded-xl pl-11 pr-12 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                      className="w-full glass-input rounded-xl pl-11 pr-12 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                     />
                     <button
                       type="button"
@@ -351,7 +351,7 @@ export default function RegisterPage() {
                       onChange={e => setConfirmPwd(e.target.value)}
                       placeholder="Répéter le mot de passe"
                       required
-                      className="w-full bg-white border border-divider rounded-xl pl-11 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                      className="w-full glass-input rounded-xl pl-11 py-3.5 text-sm text-text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                     />
                   </div>
                 </div>
@@ -360,7 +360,7 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={() => { setError(''); setStep(1) }}
-                    className="px-5 py-4 rounded-xl font-semibold text-sm text-text-dark border border-divider bg-white hover:border-primary/40 transition-colors"
+                    className="glass-btn px-5 py-4 rounded-xl font-semibold text-sm text-text-dark border border-divider hover:border-primary/40 transition-colors"
                   >
                     Retour
                   </button>
