@@ -37,8 +37,8 @@ export default function SplashPage() {
         {/* Top bar : logo gauche + passer droite */}
         <div className="flex items-center justify-between px-7 md:px-16 pt-14">
           <div className="flex items-center gap-3 anim-slide-down">
-            <img src={logoUrl} alt="REFUGE" className="anim-bounce-in" style={{ width: 44, height: 44, objectFit: 'contain' }} />
-            <span className="text-white font-bold text-xl tracking-tight">REFUGE</span>
+            <img src={logoUrl} alt="REFUGE" className="anim-bounce-in" style={{ width: 54, height: 54, objectFit: 'contain' }} />
+            <span className="font-bold text-2xl tracking-tight" style={{ color: '#00AEEF' }}>REFUGE</span>
           </div>
           <button
             onClick={skip}

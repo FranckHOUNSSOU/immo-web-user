@@ -116,8 +116,8 @@ export default function OnboardingPage() {
             </button>
           ) : (
             <div className="flex items-center gap-2.5">
-              <img src={logoUrl} alt="REFUGE" style={{ width: 32, height: 32, objectFit: 'contain' }} />
-              <span className="text-white font-bold text-base tracking-tight">REFUGE</span>
+              <img src={logoUrl} alt="REFUGE" style={{ width: 42, height: 42, objectFit: 'contain' }} />
+              <span className="font-bold text-lg tracking-tight" style={{ color: '#00AEEF' }}>REFUGE</span>
             </div>
           )}
 

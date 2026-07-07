@@ -61,8 +61,8 @@ export default function OnboardingDestinationPage() {
         {/* Top bar */}
         <div className="flex items-center justify-between px-6 md:px-16 pt-14 pb-4">
           <div className="flex items-center gap-2.5">
-            <img src={logoUrl} alt="REFUGE" style={{ width: 32, height: 32, objectFit: 'contain' }} />
-            <span className="text-white font-bold text-base tracking-tight">REFUGE</span>
+            <img src={logoUrl} alt="REFUGE" style={{ width: 42, height: 42, objectFit: 'contain' }} />
+            <span className="font-bold text-lg tracking-tight" style={{ color: '#00AEEF' }}>REFUGE</span>
           </div>
           {/* Progress */}
           <div className="flex gap-1.5">

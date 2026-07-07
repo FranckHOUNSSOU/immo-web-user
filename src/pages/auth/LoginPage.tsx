@@ -51,8 +51,8 @@ export default function LoginPage() {
       >
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <img src={logoUrl} alt="REFUGE" style={{ width: 44, height: 44, objectFit: 'contain' }} />
-          <span className="text-white font-bold text-xl tracking-tight">REFUGE</span>
+          <img src={logoUrl} alt="REFUGE" style={{ width: 54, height: 54, objectFit: 'contain' }} />
+          <span className="font-bold text-2xl tracking-tight" style={{ color: '#00AEEF' }}>REFUGE</span>
         </div>
 
         {/* Pitch */}
@@ -107,7 +107,7 @@ export default function LoginPage() {
               </svg>
             </div>
             <div>
-              <p className="text-white font-bold text-xl tracking-tight">REFUGE</p>
+              <p className="font-bold text-2xl tracking-tight" style={{ color: '#00AEEF' }}>REFUGE</p>
               <p className="text-white/50 text-[11px]">Immobilier au Bénin</p>
             </div>
           </div>
