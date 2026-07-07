@@ -89,7 +89,7 @@ export default function RegisterPage() {
       >
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <img src={logoUrl} alt="REFUGE" style={{ width: 44, height: 44, objectFit: 'contain' }} />
+          <img src={logoUrl} alt="REFUGE" style={{ width: 54, height: 54, objectFit: 'contain' }} />
           <span className="font-bold text-2xl tracking-tight" style={{ color: '#00AEEF' }}>REFUGE</span>
         </div>
 
