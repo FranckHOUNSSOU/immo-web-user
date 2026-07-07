@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { authApi } from '../../api/authApi'
-import logoUrl from '../../assets/logo.png'
+import logoUrl from '../../assets/REFUGE-LOGO.png'
 
 const COUNTRY_CODES = [
   { code: '+229', label: 'BJ +229' },

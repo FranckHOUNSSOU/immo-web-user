@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import img1 from '../../assets/onboarding-1.jpg'
 import img2 from '../../assets/onboarding-2.jpg'
 import img3 from '../../assets/onboarding-3.jpg'
-import logoUrl from '../../assets/logo.png'
+import logoUrl from '../../assets/REFUGE-LOGO.png'
 
 const SLIDES = [
   {

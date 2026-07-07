@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import sideImg from '../../assets/onboarding-side.jpg'
-import logoUrl from '../../assets/logo.png'
+import logoUrl from '../../assets/REFUGE-LOGO.png'
 
 const VILLES = ['Cotonou', 'Abomey-Calavi', 'Porto-Novo', 'Parakou', 'Bohicon']
 

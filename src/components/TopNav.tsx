@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import logoUrl from '../assets/logo.png'
+import logoUrl from '../assets/REFUGE-LOGO.png'
 
 const NAV_ITEMS = [
   { path: '/',              label: 'Accueil',  authRequired: false },
