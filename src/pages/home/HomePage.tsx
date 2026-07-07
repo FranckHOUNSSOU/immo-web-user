@@ -86,16 +86,13 @@ export default function HomePage() {
         ])
         const loc   = Array.isArray(locData)   ? locData   : locData.data   || []
         const vente = Array.isArray(venteData)  ? venteData : venteData.data || []
-        console.log('[HomePage] Tous → location:', loc.length, '/ vente:', vente.length)
         setBiens([...loc, ...vente])
       } else {
         const data = await biensApi.list({ ...params, limit: 100 })
         const list = Array.isArray(data) ? data : data.data || []
-        console.log('[HomePage] filtre', params, '→', list.length, 'biens')
         setBiens(list)
       }
-    } catch (e) {
-      console.error('[HomePage] loadBiens error', e)
+    } catch (_) {
     }
     setLoading(false)
   }
