@@ -150,9 +150,9 @@ export default function NouveauBienPage() {
   }
 
   return (
-    <div className="min-h-full flex flex-col">
+    <div className="min-h-full flex flex-col md:max-w-2xl md:mx-auto">
       {/* Header */}
-      <div className="bg-white px-4 pt-12 pb-4 border-b border-divider">
+      <div className="bg-white px-4 pt-12 md:pt-6 pb-4 border-b border-divider">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => step > 0 ? setStep(s => s - 1) : navigate(-1)}
             className="w-9 h-9 flex items-center justify-center rounded-xl bg-surface-g">
