@@ -76,8 +76,22 @@ export default function HomePage() {
   const loadBiens = async (params?: any) => {
     setLoading(true)
     try {
-      const data = await biensApi.list(params)
-      setBiens(Array.isArray(data) ? data : data.data || [])
+      const hasTransactionFilter = params?.transaction
+      const hasTypeFilter = params?.type
+
+      if (!hasTransactionFilter && !hasTypeFilter) {
+        // Pas de filtre transaction → on récupère location + vente séparément et on fusionne
+        const [locData, venteData] = await Promise.all([
+          biensApi.list({ ...params, transaction: 'location' }),
+          biensApi.list({ ...params, transaction: 'vente' }),
+        ])
+        const loc   = Array.isArray(locData)   ? locData   : locData.data   || []
+        const vente = Array.isArray(venteData)  ? venteData : venteData.data || []
+        setBiens([...loc, ...vente])
+      } else {
+        const data = await biensApi.list(params)
+        setBiens(Array.isArray(data) ? data : data.data || [])
+      }
     } catch (_) {}
     setLoading(false)
   }
