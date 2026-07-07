@@ -80,19 +80,23 @@ export default function HomePage() {
       const hasTypeFilter = params?.type
 
       if (!hasTransactionFilter && !hasTypeFilter) {
-        // Pas de filtre transaction → on récupère location + vente séparément et on fusionne
         const [locData, venteData] = await Promise.all([
-          biensApi.list({ ...params, transaction: 'location' }),
-          biensApi.list({ ...params, transaction: 'vente' }),
+          biensApi.list({ ...params, transaction: 'location', limit: 100 }),
+          biensApi.list({ ...params, transaction: 'vente',    limit: 100 }),
         ])
         const loc   = Array.isArray(locData)   ? locData   : locData.data   || []
         const vente = Array.isArray(venteData)  ? venteData : venteData.data || []
+        console.log('[HomePage] Tous → location:', loc.length, '/ vente:', vente.length)
         setBiens([...loc, ...vente])
       } else {
-        const data = await biensApi.list(params)
-        setBiens(Array.isArray(data) ? data : data.data || [])
+        const data = await biensApi.list({ ...params, limit: 100 })
+        const list = Array.isArray(data) ? data : data.data || []
+        console.log('[HomePage] filtre', params, '→', list.length, 'biens')
+        setBiens(list)
       }
-    } catch (_) {}
+    } catch (e) {
+      console.error('[HomePage] loadBiens error', e)
+    }
     setLoading(false)
   }
 
