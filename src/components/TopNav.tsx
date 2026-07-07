@@ -63,7 +63,7 @@ export default function TopNav() {
         {/* Logo */}
         <button onClick={() => navigate('/')} className="flex items-center gap-2.5 flex-shrink-0">
           <img src={logoUrl} alt="REFUGE" style={{ width: 36, height: 36, objectFit: 'contain' }} />
-          <span className="font-bold text-lg tracking-tight" style={{ color: '#1D1D1F' }}>REFUGE</span>
+          <span className="font-bold text-xl tracking-tight" style={{ color: '#00AEEF' }}>REFUGE</span>
         </button>
 
         {/* Nav centré */}
