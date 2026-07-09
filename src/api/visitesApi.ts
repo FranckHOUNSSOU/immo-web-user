@@ -41,6 +41,9 @@ export const visitesApi = {
   accepterContreProposition: (id: number) =>
     axios.patch(`${BASE}/visites/${id}/accepter`, {}, auth()).then(r => r.data),
 
+  marquerEffectuee: (id: number) =>
+    axios.patch(`${BASE}/visites/${id}/marquer-effectuee`, {}, auth()).then(r => r.data),
+
   deciderIntegration: (id: number, integre: boolean) =>
     axios.patch(`${BASE}/visites/${id}/integration`, { integre }, auth()).then(r => r.data),
 
