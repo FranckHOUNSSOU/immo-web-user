@@ -18,8 +18,14 @@ import OnboardingProjetPage from './pages/auth/OnboardingProjetPage'
 import OnboardingDestinationPage from './pages/auth/OnboardingDestinationPage'
 import ProprietaireDashboard from './pages/proprietaire/ProprietaireDashboard'
 import DemarcheurDashboard from './pages/demarcheur/DemarcheurDashboard'
+import LocataireDashboard from './pages/locataire/LocataireDashboard'
 import NouveauBienPage from './pages/bien/NouveauBienPage'
 import ReservationPage from './pages/reservation/ReservationPage'
+import ContratBailPage from './pages/integration/ContratBailPage'
+import PaiementIntegrationPage from './pages/integration/PaiementIntegrationPage'
+import GestionViaAppPage from './pages/integration/GestionViaAppPage'
+import PortefeuillePage from './pages/wallet/PortefeuillePage'
+import ManageRolesPage from './pages/profile/ManageRolesPage'
 
 function PrivateRoute({ children }: { children: React.ReactElement }) {
   const { isLoggedIn } = useAuth()
@@ -34,7 +40,8 @@ function HomeGuard() {
 
   if (isLoggedIn) {
     if (user?.role === 'proprietaire') return <Navigate to="/proprietaire" replace />
-    if (user?.role === 'demarcheur') return <Navigate to="/demarcheur" replace />
+    if (user?.role === 'demarcheur')   return <Navigate to="/demarcheur" replace />
+    if (user?.role === 'locataire')    return <Navigate to="/locataire" replace />
   }
 
   if (!isLoggedIn && !isOnboarded) {
@@ -63,6 +70,20 @@ function App() {
         <Route path="/demarcheur" element={
           <PrivateRoute><DemarcheurDashboard /></PrivateRoute>
         } />
+        <Route path="/locataire" element={
+          <PrivateRoute><LocataireDashboard /></PrivateRoute>
+        } />
+
+        {/* Flow intégration locataire */}
+        <Route path="/contrat-bail/:bienId" element={
+          <PrivateRoute><ContratBailPage /></PrivateRoute>
+        } />
+        <Route path="/paiement-integration/:bienId" element={
+          <PrivateRoute><PaiementIntegrationPage /></PrivateRoute>
+        } />
+        <Route path="/gestion-via-app/:contratId?" element={
+          <PrivateRoute><GestionViaAppPage /></PrivateRoute>
+        } />
 
         {/* Pages client avec MainLayout + BottomNav */}
         <Route path="/" element={<MainLayout />}>
@@ -86,6 +107,12 @@ function App() {
           } />
           <Route path="nouveau-bien" element={
             <PrivateRoute><NouveauBienPage /></PrivateRoute>
+          } />
+          <Route path="portefeuille" element={
+            <PrivateRoute><PortefeuillePage /></PrivateRoute>
+          } />
+          <Route path="mes-roles" element={
+            <PrivateRoute><ManageRolesPage /></PrivateRoute>
           } />
         </Route>
 
