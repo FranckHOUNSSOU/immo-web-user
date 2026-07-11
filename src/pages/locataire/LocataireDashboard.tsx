@@ -501,7 +501,13 @@ function Sidebar({ tab, setTab, user, navigate, logout }: any) {
   const initials = `${user?.prenom?.[0] || ''}${user?.nom?.[0] || ''}`.toUpperCase()
   return (
     <aside className="hidden md:flex md:flex-col md:w-64 md:flex-shrink-0 md:h-dvh md:sticky md:top-0"
-      style={{ background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(40px) saturate(180%)', borderRight: '1px solid rgba(0,0,0,0.06)' }}>
+      style={{
+        background: 'rgba(245,245,247,0.78)',
+        backdropFilter: 'blur(48px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(48px) saturate(180%)',
+        borderRight: '1px solid rgba(0,0,0,0.07)',
+        boxShadow: 'inset -0.5px 0 0 rgba(0,0,0,0.04)',
+      }}>
       <button onClick={() => navigate('/')} className="flex items-center gap-2.5 px-6 pt-6 pb-5 flex-shrink-0">
         <img src={logoUrl} alt="REFUGE" style={{ width: 34, height: 34, objectFit: 'contain' }} />
         <span className="font-bold text-lg tracking-tight" style={{ color: '#00AEEF' }}>REFUGE</span>
@@ -513,8 +519,13 @@ function Sidebar({ tab, setTab, user, navigate, logout }: any) {
           return (
             <button key={t.key} onClick={() => t.key === 'messages' ? navigate('/conversations') : setTab(t.key)}
               className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-left"
-              style={{ color: active ? GREEN : 'rgba(0,0,0,0.55)', background: active ? GREEN + '15' : 'transparent' }}>
-              <span style={{ color: active ? GREEN : 'rgba(0,0,0,0.4)' }}>{t.icon(active)}</span>
+              style={{
+                color: active ? '#4B6BFF' : 'rgba(0,0,0,0.55)',
+                background: active ? 'rgba(75,107,255,0.10)' : 'transparent',
+                border: active ? '1px solid rgba(75,107,255,0.22)' : '1px solid transparent',
+                boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.8)' : 'none',
+              }}>
+              <span style={{ color: active ? '#4B6BFF' : 'rgba(0,0,0,0.4)' }}>{t.icon(active)}</span>
               {t.label}
             </button>
           )
@@ -525,7 +536,7 @@ function Sidebar({ tab, setTab, user, navigate, logout }: any) {
           className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all"
           onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.04)'}
           onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}>
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: `linear-gradient(135deg, #065F46, ${GREEN})` }}>{initials}</div>
+          <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: 'linear-gradient(135deg,#4B6BFF,#7B4BFF)' }}>{initials}</div>
           <div className="flex-1 min-w-0 text-left">
             <p className="text-xs font-bold text-text-dark truncate">{user?.prenom} {user?.nom}</p>
             <p className="text-[10px] text-text-grey">Locataire</p>
@@ -533,8 +544,8 @@ function Sidebar({ tab, setTab, user, navigate, logout }: any) {
         </button>
         <button onClick={() => { logout(); navigate('/login') }}
           className="w-full mt-1 flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all"
-          style={{ color: '#EF4444' }}
-          onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = '#EF444408'}
+          style={{ color: '#FF3B30' }}
+          onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,59,48,0.06)'}
           onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}>
           <IcLogout /> Déconnexion
         </button>
@@ -556,7 +567,7 @@ export default function LocataireDashboard() {
     : 'Mon Profil'
 
   return (
-    <div className="flex h-dvh" style={{ background: '#F0FDF4' }}>
+    <div className="flex h-dvh bg-[#F0FDF4] md:bg-[#F5F5F7]">
       <Sidebar tab={tab} setTab={setTab} user={user} navigate={navigate} logout={logout} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -573,7 +584,13 @@ export default function LocataireDashboard() {
         </div>
 
         {/* Desktop top bar */}
-        <div className="hidden md:flex flex-shrink-0 items-center justify-between px-8 h-16" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)', background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(20px)' }}>
+        <div className="hidden md:flex flex-shrink-0 items-center justify-between px-8 h-16"
+          style={{
+            borderBottom: '1px solid rgba(0,0,0,0.07)',
+            background: 'rgba(245,245,247,0.78)',
+            backdropFilter: 'blur(48px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(48px) saturate(180%)',
+          }}>
           <p className="font-bold text-text-dark text-xl">{title}</p>
         </div>
 
