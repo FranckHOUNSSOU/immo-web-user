@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { loyersApi } from '../../api/loyersApi'
 import { paiementApi } from '../../api/paiementApi'
 import { notificationsApi } from '../../api/notificationsApi'
+import logoUrl from '../../assets/REFUGE-LOGO.png'
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 const IcHome   = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
@@ -96,145 +97,171 @@ function MonLogementTab() {
 
   const typeLabels: Record<string, string> = { maison: 'Maison', appart_vide: 'Appartement vide', appart_meuble: 'Appartement meublé', guesthouse: 'Guesthouse', terrain: 'Terrain' }
 
-  return (
-    <div className="flex-1 overflow-y-auto pb-6">
-      {/* Hero card */}
-      <div className="mx-4 mt-5 rounded-3xl p-5 text-white" style={{ background: `linear-gradient(135deg, #065F46, ${GREEN})`, boxShadow: `0 8px 24px ${GREEN}50` }}>
-        <p className="text-white/70 text-xs uppercase tracking-wider mb-1">Mon logement</p>
-        <p className="font-bold text-xl mb-1">{typeLabels[bien?.type] || bien?.type}</p>
-        <div className="flex items-center gap-1.5 mb-4 text-white/80 text-sm">
-          <IcPin />
-          <span>{bien?.localisation?.quartier ? `${bien.localisation.quartier}, ` : ''}{bien?.localisation?.ville}</span>
-        </div>
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { label: 'Loyer/mois', value: `${Number(contrat.loyer_mensuel || 0).toLocaleString('fr-FR')}F` },
-            { label: 'Échéance', value: contrat.prochain_paiement ? new Date(contrat.prochain_paiement).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—' },
-            { label: 'Payés', value: `${data.mois_payes ?? 0}` },
-            { label: 'Dûs', value: `${data.mois_dus ?? 0}`, warn: (data.mois_dus ?? 0) > 0 },
-          ].map(s => (
-            <div key={s.label} className="rounded-xl px-2 py-2 text-center" style={{ background: 'rgba(255,255,255,0.12)' }}>
-              <p className="font-bold text-sm leading-tight" style={{ color: s.warn ? '#FCD34D' : 'white' }}>{s.value}</p>
-              <p className="text-[10px] mt-0.5 text-white/60">{s.label}</p>
-            </div>
-          ))}
-        </div>
+  const GestionnaireCard = ({ desktop }: { desktop?: boolean }) => (
+    <div className={`${desktop ? '' : 'md:hidden'} rounded-2xl p-4 md:p-5 flex items-center gap-3`}
+      style={{ background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(20px)', border: '1px solid rgba(0,0,0,0.06)', boxShadow: desktop ? '0 4px 24px rgba(0,0,0,0.06)' : undefined }}>
+      <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0" style={{ background: `linear-gradient(135deg, #4B6BFF, #7B4BFF)` }}>
+        {(gestionnaire.prenom?.[0] || '') + (gestionnaire.nom?.[0] || '')}
       </div>
-
-      {/* Gestionnaire */}
-      {gestionnaire && (
-        <div className="mx-4 mt-4 rounded-2xl p-4 flex items-center gap-3" style={{ background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(20px)', border: '1px solid rgba(0,0,0,0.06)' }}>
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0" style={{ background: `linear-gradient(135deg, #4B6BFF, #7B4BFF)` }}>
-            {(gestionnaire.prenom?.[0] || '') + (gestionnaire.nom?.[0] || '')}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-text-dark text-sm">{gestionnaire.prenom} {gestionnaire.nom}</p>
-            <p className="text-xs text-text-grey capitalize">{gestionnaire.role === 'demarcheur' ? 'Agent' : 'Propriétaire'}</p>
-          </div>
-          {gestionnaire.telephone && (
-            <a href={`tel:${gestionnaire.telephone}`} className="w-9 h-9 flex items-center justify-center rounded-xl" style={{ background: '#22C55E20', color: GREEN }}>
-              <IcPhone />
-            </a>
-          )}
-        </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-text-dark text-sm">{gestionnaire.prenom} {gestionnaire.nom}</p>
+        <p className="text-xs text-text-grey capitalize">{gestionnaire.role === 'demarcheur' ? 'Agent' : 'Propriétaire'}</p>
+      </div>
+      {gestionnaire.telephone && (
+        <a href={`tel:${gestionnaire.telephone}`} className="w-9 h-9 flex items-center justify-center rounded-xl flex-shrink-0" style={{ background: '#22C55E20', color: GREEN }}>
+          <IcPhone />
+        </a>
       )}
+    </div>
+  )
 
-      {/* Loyers en attente */}
-      {loyers.length > 0 && (
-        <div className="mx-4 mt-5">
-          <p className="font-bold text-text-dark mb-3">Loyers en attente ({loyers.length})</p>
-          <div className="space-y-2">
-            {loyers.map((l: any) => (
-              <button key={l.id} onClick={() => toggleLoyer(l.id)}
-                className="w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all text-left"
-                style={{ background: selected.includes(l.id) ? GREEN + '10' : 'rgba(255,255,255,0.8)', borderColor: selected.includes(l.id) ? GREEN : 'rgba(0,0,0,0.07)' }}>
-                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all`}
-                  style={{ borderColor: selected.includes(l.id) ? GREEN : '#D1D5DB', background: selected.includes(l.id) ? GREEN : 'transparent' }}>
-                  {selected.includes(l.id) && <span className="text-white"><IcCheck /></span>}
+  return (
+    <div className="flex-1 overflow-y-auto pb-6 md:pb-12">
+      <div className="md:max-w-6xl md:mx-auto md:w-full md:px-8 md:pt-8 md:flex md:gap-6 md:items-start">
+        <div className="md:flex-1 md:min-w-0">
+          {/* Hero card */}
+          <div className="mx-4 mt-5 md:mx-0 md:mt-0 rounded-3xl p-5 md:p-7 text-white" style={{ background: `linear-gradient(135deg, #065F46, ${GREEN})`, boxShadow: `0 8px 24px ${GREEN}50` }}>
+            <p className="text-white/70 text-xs uppercase tracking-wider mb-1">Mon logement</p>
+            <p className="font-bold text-xl md:text-2xl mb-1">{typeLabels[bien?.type] || bien?.type}</p>
+            <div className="flex items-center gap-1.5 mb-4 text-white/80 text-sm">
+              <IcPin />
+              <span>{bien?.localisation?.quartier ? `${bien.localisation.quartier}, ` : ''}{bien?.localisation?.ville}</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2 md:gap-3 md:max-w-xl">
+              {[
+                { label: 'Loyer/mois', value: `${Number(contrat.loyer_mensuel || 0).toLocaleString('fr-FR')}F` },
+                { label: 'Échéance', value: contrat.prochain_paiement ? new Date(contrat.prochain_paiement).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—' },
+                { label: 'Payés', value: `${data.mois_payes ?? 0}` },
+                { label: 'Dûs', value: `${data.mois_dus ?? 0}`, warn: (data.mois_dus ?? 0) > 0 },
+              ].map(s => (
+                <div key={s.label} className="rounded-xl px-2 py-2 md:py-3 text-center" style={{ background: 'rgba(255,255,255,0.12)' }}>
+                  <p className="font-bold text-sm md:text-base leading-tight" style={{ color: s.warn ? '#FCD34D' : 'white' }}>{s.value}</p>
+                  <p className="text-[10px] md:text-xs mt-0.5 text-white/60">{s.label}</p>
                 </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-text-dark text-sm">{l.mois || new Date(l.date_echeance).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</p>
-                  <p className="text-xs text-text-grey">Échéance : {new Date(l.date_echeance).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</p>
-                </div>
-                <p className="font-bold text-text-dark text-sm flex-shrink-0">{Number(l.montant).toLocaleString('fr-FR')} F</p>
-              </button>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* Paiement MoMo */}
-          {selected.length > 0 && (
-            <div className="mt-4 rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(0,0,0,0.08)' }}>
-              {payState === 'success' ? (
-                <div className="flex items-center gap-2 justify-center py-2">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: GREEN }}><IcCheck /></div>
-                  <p className="font-bold text-text-dark">Paiement confirmé !</p>
-                </div>
-              ) : payState === 'error' ? (
-                <div className="text-center">
-                  <p className="text-red-500 text-sm mb-3">{payMsg}</p>
-                  <button onClick={() => setPayState('idle')} className="text-sm font-semibold text-primary">Réessayer</button>
-                </div>
-              ) : payState === 'waiting' ? (
-                <div className="flex flex-col items-center gap-2 py-2">
-                  <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: GREEN, borderTopColor: 'transparent' }} />
-                  <p className="text-sm text-text-grey">Confirmation du paiement MoMo…</p>
-                  <p className="text-xs text-text-grey">Validez la demande sur votre téléphone</p>
-                </div>
-              ) : (
-                <>
-                  <div className="flex justify-between mb-3">
-                    <p className="text-sm text-text-grey">{selected.length} loyer{selected.length > 1 ? 's' : ''}</p>
-                    <p className="font-bold text-text-dark">{totalSelected.toLocaleString('fr-FR')} FCFA</p>
-                  </div>
-                  <div className="flex items-center gap-2 bg-surface-g rounded-xl px-4 py-3 mb-3 border border-divider">
-                    <span className="text-text-grey text-sm font-semibold">+229</span>
-                    <div className="w-px h-4 bg-divider" />
-                    <input type="tel" value={tel} onChange={e => setTel(e.target.value.replace(/\D/g, ''))}
-                      placeholder="XX XX XX XX" maxLength={8}
-                      className="flex-1 bg-transparent text-sm outline-none text-text-dark" />
-                  </div>
-                  <button onClick={payer} disabled={!tel || paying}
-                    className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50"
-                    style={{ background: `linear-gradient(135deg, #065F46, ${GREEN})` }}>
-                    Payer via MTN MoMo
+          {/* Gestionnaire — mobile only, desktop copy lives in side column */}
+          {gestionnaire && (
+            <div className="mx-4 mt-4">
+              <GestionnaireCard />
+            </div>
+          )}
+
+          {/* Loyers en attente */}
+          {loyers.length > 0 && (
+            <div className="mx-4 md:mx-0 mt-5">
+              <p className="font-bold text-text-dark mb-3">Loyers en attente ({loyers.length})</p>
+              <div className="space-y-2 md:grid md:grid-cols-2 md:gap-2 md:space-y-0">
+                {loyers.map((l: any) => (
+                  <button key={l.id} onClick={() => toggleLoyer(l.id)}
+                    className="w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all text-left"
+                    style={{ background: selected.includes(l.id) ? GREEN + '10' : 'rgba(255,255,255,0.8)', borderColor: selected.includes(l.id) ? GREEN : 'rgba(0,0,0,0.07)' }}>
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all`}
+                      style={{ borderColor: selected.includes(l.id) ? GREEN : '#D1D5DB', background: selected.includes(l.id) ? GREEN : 'transparent' }}>
+                      {selected.includes(l.id) && <span className="text-white"><IcCheck /></span>}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-text-dark text-sm">{l.mois || new Date(l.date_echeance).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</p>
+                      <p className="text-xs text-text-grey">Échéance : {new Date(l.date_echeance).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</p>
+                    </div>
+                    <p className="font-bold text-text-dark text-sm flex-shrink-0">{Number(l.montant).toLocaleString('fr-FR')} F</p>
                   </button>
-                </>
+                ))}
+              </div>
+
+              {/* Paiement MoMo */}
+              {selected.length > 0 && (
+                <div className="mt-4 rounded-2xl p-4 md:max-w-md" style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(0,0,0,0.08)' }}>
+                  {payState === 'success' ? (
+                    <div className="flex items-center gap-2 justify-center py-2">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: GREEN }}><IcCheck /></div>
+                      <p className="font-bold text-text-dark">Paiement confirmé !</p>
+                    </div>
+                  ) : payState === 'error' ? (
+                    <div className="text-center">
+                      <p className="text-red-500 text-sm mb-3">{payMsg}</p>
+                      <button onClick={() => setPayState('idle')} className="text-sm font-semibold text-primary">Réessayer</button>
+                    </div>
+                  ) : payState === 'waiting' ? (
+                    <div className="flex flex-col items-center gap-2 py-2">
+                      <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: GREEN, borderTopColor: 'transparent' }} />
+                      <p className="text-sm text-text-grey">Confirmation du paiement MoMo…</p>
+                      <p className="text-xs text-text-grey">Validez la demande sur votre téléphone</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex justify-between mb-3">
+                        <p className="text-sm text-text-grey">{selected.length} loyer{selected.length > 1 ? 's' : ''}</p>
+                        <p className="font-bold text-text-dark">{totalSelected.toLocaleString('fr-FR')} FCFA</p>
+                      </div>
+                      <div className="flex items-center gap-2 bg-surface-g rounded-xl px-4 py-3 mb-3 border border-divider">
+                        <span className="text-text-grey text-sm font-semibold">+229</span>
+                        <div className="w-px h-4 bg-divider" />
+                        <input type="tel" value={tel} onChange={e => setTel(e.target.value.replace(/\D/g, ''))}
+                          placeholder="XX XX XX XX" maxLength={8}
+                          className="flex-1 bg-transparent text-sm outline-none text-text-dark" />
+                      </div>
+                      <button onClick={payer} disabled={!tel || paying}
+                        className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50 transition-opacity hover:opacity-90"
+                        style={{ background: `linear-gradient(135deg, #065F46, ${GREEN})` }}>
+                        Payer via MTN MoMo
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Historique */}
-      {historique.length > 0 && (
-        <div className="mx-4 mt-5">
-          <p className="font-bold text-text-dark mb-3">Historique des paiements</p>
-          <div className="space-y-2">
-            {historique.map((h: any, i: number) => (
-              <div key={i} className="flex items-center gap-3 p-3.5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.75)', border: '1px solid rgba(0,0,0,0.06)' }}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#22C55E20' }}>
-                  <span style={{ color: GREEN }}><IcCheck /></span>
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-text-dark text-sm">{h.mois || new Date(h.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</p>
-                  <p className="text-xs text-text-grey">{new Date(h.created_at || h.date_paiement).toLocaleDateString('fr-FR')}</p>
-                </div>
-                <p className="font-bold text-sm" style={{ color: GREEN }}>{Number(h.montant).toLocaleString('fr-FR')} F</p>
+          {/* Historique */}
+          {historique.length > 0 && (
+            <div className="mx-4 md:mx-0 mt-5">
+              <p className="font-bold text-text-dark mb-3">Historique des paiements</p>
+              <div className="space-y-2 md:grid md:grid-cols-2 md:gap-2 md:space-y-0">
+                {historique.map((h: any, i: number) => (
+                  <div key={i} className="flex items-center gap-3 p-3.5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.75)', border: '1px solid rgba(0,0,0,0.06)' }}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#22C55E20' }}>
+                      <span style={{ color: GREEN }}><IcCheck /></span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-text-dark text-sm">{h.mois || new Date(h.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</p>
+                      <p className="text-xs text-text-grey">{new Date(h.created_at || h.date_paiement).toLocaleDateString('fr-FR')}</p>
+                    </div>
+                    <p className="font-bold text-sm" style={{ color: GREEN }}>{Number(h.montant).toLocaleString('fr-FR')} F</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
 
-      {loyers.length === 0 && historique.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-3" style={{ background: GREEN + '20' }}>
-            <span style={{ color: GREEN }}><IcCheck /></span>
-          </div>
-          <p className="font-bold text-text-dark mb-1">Tout est à jour !</p>
-          <p className="text-text-grey text-sm">Aucun loyer en attente.</p>
+          {loyers.length === 0 && historique.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 md:py-20 text-center px-6 md:mx-0 md:rounded-3xl md:mt-5" style={{ background: 'transparent' }}>
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mb-3" style={{ background: GREEN + '20' }}>
+                <span style={{ color: GREEN }}><IcCheck /></span>
+              </div>
+              <p className="font-bold text-text-dark mb-1">Tout est à jour !</p>
+              <p className="text-text-grey text-sm">Aucun loyer en attente.</p>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Side column — desktop only */}
+        {gestionnaire && (
+          <div className="hidden md:block md:w-80 md:flex-shrink-0 md:sticky md:top-8 md:space-y-4">
+            <GestionnaireCard desktop />
+            <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(20px)', border: '1px solid rgba(0,0,0,0.06)' }}>
+              <p className="text-xs font-bold text-text-grey uppercase tracking-wider mb-3">Résumé</p>
+              <div className="space-y-2.5 text-sm">
+                <div className="flex justify-between"><span className="text-text-grey">Loyer mensuel</span><span className="font-bold text-text-dark">{Number(contrat.loyer_mensuel || 0).toLocaleString('fr-FR')} F</span></div>
+                <div className="flex justify-between"><span className="text-text-grey">Loyers payés</span><span className="font-bold text-text-dark">{data.mois_payes ?? 0}</span></div>
+                <div className="flex justify-between"><span className="text-text-grey">Loyers dûs</span><span className="font-bold" style={{ color: (data.mois_dus ?? 0) > 0 ? '#EF4444' : GREEN }}>{data.mois_dus ?? 0}</span></div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -301,10 +328,10 @@ function ActiviteTab() {
   const urg = urgence()
 
   return (
-    <div className="flex-1 overflow-y-auto pb-6 px-4">
+    <div className="flex-1 overflow-y-auto pb-6 px-4 md:px-8 md:max-w-3xl md:mx-auto md:w-full">
       {/* Prochaine échéance */}
       {prochainLoyer && urg && (
-        <div className="mt-5 rounded-3xl p-5" style={{ background: urg.bg, border: `1.5px solid ${urg.color}30` }}>
+        <div className="mt-5 md:mt-8 rounded-3xl p-5" style={{ background: urg.bg, border: `1.5px solid ${urg.color}30` }}>
           <div className="flex items-center justify-between mb-3">
             <p className="font-bold text-text-dark">Prochaine échéance</p>
             <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: urg.color, color: 'white' }}>{urg.label}</span>
@@ -398,7 +425,7 @@ function AlertesTab() {
   }, [])
   if (loading) return <div className="flex-1 flex items-center justify-center"><div className="w-7 h-7 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: GREEN, borderTopColor: 'transparent' }} /></div>
   return (
-    <div className="flex-1 overflow-y-auto pb-6 px-4 pt-4">
+    <div className="flex-1 overflow-y-auto pb-6 px-4 pt-4 md:px-8 md:pt-8 md:max-w-3xl md:mx-auto md:w-full">
       {notifs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="w-16 h-16 rounded-full flex items-center justify-center mb-3" style={{ background: GREEN + '20' }}>
@@ -430,7 +457,7 @@ function ProfilTab() {
   const navigate = useNavigate()
   const initials = `${user?.prenom?.[0] || ''}${user?.nom?.[0] || ''}`.toUpperCase()
   return (
-    <div className="flex-1 overflow-y-auto pb-10 pt-5">
+    <div className="flex-1 overflow-y-auto pb-10 pt-5 md:pt-10 md:max-w-2xl md:mx-auto md:w-full">
       <div className="flex flex-col items-center px-5 mb-6">
         <div className="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-3"
           style={{ background: `linear-gradient(135deg, #065F46, ${GREEN})` }}>{initials}</div>
@@ -469,65 +496,121 @@ const TABS: { key: Tab; label: string; icon: (active: boolean) => React.ReactNod
   { key: 'profil',   label: 'Profil',   icon: () => <IcPerson /> },
 ]
 
+// ─── Sidebar (desktop) ──────────────────────────────────────────────────────
+function Sidebar({ tab, setTab, user, navigate, logout }: any) {
+  const initials = `${user?.prenom?.[0] || ''}${user?.nom?.[0] || ''}`.toUpperCase()
+  return (
+    <aside className="hidden md:flex md:flex-col md:w-64 md:flex-shrink-0 md:h-dvh md:sticky md:top-0"
+      style={{ background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(40px) saturate(180%)', borderRight: '1px solid rgba(0,0,0,0.06)' }}>
+      <button onClick={() => navigate('/')} className="flex items-center gap-2.5 px-6 pt-6 pb-5 flex-shrink-0">
+        <img src={logoUrl} alt="REFUGE" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+        <span className="font-bold text-lg tracking-tight" style={{ color: '#00AEEF' }}>REFUGE</span>
+      </button>
+      <p className="px-6 mb-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'rgba(0,0,0,0.35)' }}>Espace Locataire</p>
+      <nav className="flex-1 px-3 space-y-1">
+        {TABS.map(t => {
+          const active = tab === t.key
+          return (
+            <button key={t.key} onClick={() => t.key === 'messages' ? navigate('/conversations') : setTab(t.key)}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all text-left"
+              style={{ color: active ? GREEN : 'rgba(0,0,0,0.55)', background: active ? GREEN + '15' : 'transparent' }}>
+              <span style={{ color: active ? GREEN : 'rgba(0,0,0,0.4)' }}>{t.icon(active)}</span>
+              {t.label}
+            </button>
+          )
+        })}
+      </nav>
+      <div className="px-3 pb-5 flex-shrink-0">
+        <button onClick={() => navigate('/profil')}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all"
+          onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.04)'}
+          onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}>
+          <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: `linear-gradient(135deg, #065F46, ${GREEN})` }}>{initials}</div>
+          <div className="flex-1 min-w-0 text-left">
+            <p className="text-xs font-bold text-text-dark truncate">{user?.prenom} {user?.nom}</p>
+            <p className="text-[10px] text-text-grey">Locataire</p>
+          </div>
+        </button>
+        <button onClick={() => { logout(); navigate('/login') }}
+          className="w-full mt-1 flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+          style={{ color: '#EF4444' }}
+          onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = '#EF444408'}
+          onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}>
+          <IcLogout /> Déconnexion
+        </button>
+      </div>
+    </aside>
+  )
+}
+
 export default function LocataireDashboard() {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('logement')
   const initials = `${user?.prenom?.[0] || ''}${user?.nom?.[0] || ''}`.toUpperCase()
 
+  const title = tab === 'logement' ? 'Mon Logement'
+    : tab === 'activite' ? 'Activité'
+    : tab === 'messages' ? 'Messages'
+    : tab === 'alertes' ? 'Alertes'
+    : 'Mon Profil'
+
   return (
-    <div className="flex flex-col h-dvh" style={{ background: '#F0FDF4' }}>
-      {/* Header */}
-      <div className="flex-shrink-0 px-5 pt-12 pb-5" style={{ background: `linear-gradient(135deg, #065F46, ${GREEN})` }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-white/60 text-xs uppercase tracking-wider">REFUGE · Locataire</p>
-            <p className="text-white font-bold text-xl mt-0.5">
-              {tab === 'logement' ? 'Mon Logement'
-               : tab === 'activite' ? 'Activité'
-               : tab === 'messages' ? 'Messages'
-               : tab === 'alertes' ? 'Alertes'
-               : 'Mon Profil'}
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0"
-            style={{ background: 'rgba(255,255,255,0.2)' }}>{initials}</div>
-        </div>
-      </div>
+    <div className="flex h-dvh" style={{ background: '#F0FDF4' }}>
+      <Sidebar tab={tab} setTab={setTab} user={user} navigate={navigate} logout={logout} />
 
-      {/* Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {tab === 'logement' && <MonLogementTab />}
-        {tab === 'activite' && <ActiviteTab />}
-        {tab === 'messages' && (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-3" style={{ background: TEAL + '20' }}>
-              <IcChat />
+        {/* Mobile header */}
+        <div className="md:hidden flex-shrink-0 px-5 pt-12 pb-5" style={{ background: `linear-gradient(135deg, #065F46, ${GREEN})` }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white/60 text-xs uppercase tracking-wider">REFUGE · Locataire</p>
+              <p className="text-white font-bold text-xl mt-0.5">{title}</p>
             </div>
-            <p className="font-bold text-text-dark mb-1">Messagerie</p>
-            <button onClick={() => navigate('/conversations')} className="mt-3 px-5 py-2.5 rounded-xl font-bold text-white text-sm" style={{ background: TEAL }}>
-              Ouvrir les conversations
-            </button>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0"
+              style={{ background: 'rgba(255,255,255,0.2)' }}>{initials}</div>
           </div>
-        )}
-        {tab === 'alertes' && <AlertesTab />}
-        {tab === 'profil' && <ProfilTab />}
-      </div>
+        </div>
 
-      {/* Bottom Nav */}
-      <div className="flex-shrink-0 border-t" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px)', borderColor: 'rgba(0,0,0,0.06)' }}>
-        <div className="flex items-center justify-around px-2 py-2">
-          {TABS.map(t => {
-            const active = tab === t.key
-            return (
-              <button key={t.key} onClick={() => t.key === 'messages' ? navigate('/conversations') : setTab(t.key)}
-                className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-2xl transition-all"
-                style={active ? { background: GREEN + '18' } : {}}>
-                <span style={{ color: active ? GREEN : 'rgba(0,0,0,0.35)' }}>{t.icon(active)}</span>
-                {active && <span className="text-[10px] font-bold" style={{ color: GREEN }}>{t.label}</span>}
+        {/* Desktop top bar */}
+        <div className="hidden md:flex flex-shrink-0 items-center justify-between px-8 h-16" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)', background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(20px)' }}>
+          <p className="font-bold text-text-dark text-xl">{title}</p>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {tab === 'logement' && <MonLogementTab />}
+          {tab === 'activite' && <ActiviteTab />}
+          {tab === 'messages' && (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mb-3" style={{ background: TEAL + '20' }}>
+                <IcChat />
+              </div>
+              <p className="font-bold text-text-dark mb-1">Messagerie</p>
+              <button onClick={() => navigate('/conversations')} className="mt-3 px-5 py-2.5 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90" style={{ background: TEAL }}>
+                Ouvrir les conversations
               </button>
-            )
-          })}
+            </div>
+          )}
+          {tab === 'alertes' && <AlertesTab />}
+          {tab === 'profil' && <ProfilTab />}
+        </div>
+
+        {/* Bottom Nav — mobile only */}
+        <div className="md:hidden flex-shrink-0 border-t" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px)', borderColor: 'rgba(0,0,0,0.06)' }}>
+          <div className="flex items-center justify-around px-2 py-2">
+            {TABS.map(t => {
+              const active = tab === t.key
+              return (
+                <button key={t.key} onClick={() => t.key === 'messages' ? navigate('/conversations') : setTab(t.key)}
+                  className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-2xl transition-all"
+                  style={active ? { background: GREEN + '18' } : {}}>
+                  <span style={{ color: active ? GREEN : 'rgba(0,0,0,0.35)' }}>{t.icon(active)}</span>
+                  {active && <span className="text-[10px] font-bold" style={{ color: GREEN }}>{t.label}</span>}
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
