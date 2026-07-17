@@ -6,6 +6,8 @@ import { visitesApi } from '../../api/visitesApi'
 import { userApi } from '../../api/userApi'
 import { walletApi } from '../../api/walletApi'
 import { delegationApi } from '../../api/delegationApi'
+import EditProfileModal from '../profile/EditProfileModal'
+import ChangePasswordModal from '../profile/ChangePasswordModal'
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 const IcDash    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
@@ -503,6 +505,8 @@ function DelegationsRecuesTab({ onBack }: { onBack: () => void }) {
 function ProfilTab({ user, onOpenDelegations }: { user: any; onOpenDelegations: () => void }) {
   const navigate = useNavigate()
   const { logout } = useAuth()
+  const [editOpen, setEditOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
   const [cipFile, setCipFile] = useState<File | null>(null)
   const [ifuFile, setIfuFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -580,12 +584,14 @@ function ProfilTab({ user, onOpenDelegations }: { user: any; onOpenDelegations: 
       </div>
 
       <div className="px-4 space-y-2">
-        {[{ label: 'Modifier le profil', to: '/profil/edit' }, { label: 'Changer le mot de passe', to: '/profil/password' }].map(item => (
-          <button key={item.label} onClick={() => navigate(item.to)} className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm">
-            <span className="text-sm font-semibold text-text-dark">{item.label}</span>
-            <IcChevron />
-          </button>
-        ))}
+        <button onClick={() => setEditOpen(true)} className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm">
+          <span className="text-sm font-semibold text-text-dark">Modifier le profil</span>
+          <IcChevron />
+        </button>
+        <button onClick={() => setPasswordOpen(true)} className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm">
+          <span className="text-sm font-semibold text-text-dark">Changer le mot de passe</span>
+          <IcChevron />
+        </button>
         <button onClick={onOpenDelegations} className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm">
           <span className="text-sm font-semibold text-text-dark">Délégations reçues</span>
           <IcChevron />
@@ -594,6 +600,8 @@ function ProfilTab({ user, onOpenDelegations }: { user: any; onOpenDelegations: 
           Se déconnecter
         </button>
       </div>
+      <EditProfileModal open={editOpen} onClose={() => setEditOpen(false)} />
+      <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
     </div>
   )
 }

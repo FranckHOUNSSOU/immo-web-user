@@ -6,6 +6,9 @@ import { visitesApi } from '../../api/visitesApi'
 import { userApi } from '../../api/userApi'
 import { walletApi } from '../../api/walletApi'
 import { delegationApi } from '../../api/delegationApi'
+import { loyersApi } from '../../api/loyersApi'
+import EditProfileModal from '../profile/EditProfileModal'
+import ChangePasswordModal from '../profile/ChangePasswordModal'
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 const IcDash    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
@@ -572,21 +575,29 @@ function DelegationsTab({ onBack }: { onBack: () => void }) {
 function LoyersTab() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  useEffect(() => { userApi.loyersStats().then(setData).catch(() => {}).finally(() => setLoading(false)) }, [])
+  useEffect(() => { loyersApi.dashboard().then(setData).catch(() => {}).finally(() => setLoading(false)) }, [])
   if (loading) return <div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
-  const loyers: any[] = data?.loyers || []
+
+  const stats = data?.stats || {}
+  const contrats: any[] = data?.contrats || []
+  const loyers: any[] = contrats.flatMap((c: any) => (c.loyers || []).map((l: any) => ({ ...l, bien: c.bien, locataire: c.locataire })))
+  const enAttenteMontant = loyers.filter(l => l.statut === 'en_attente' || l.statut === 'en_retard').reduce((s, l) => s + Number(l.montant || 0), 0)
+  const sorted = [...loyers].sort((a, b) => new Date(b.date_echeance || 0).getTime() - new Date(a.date_echeance || 0).getTime())
+
   return (
     <div className="flex-1 overflow-y-auto px-4 py-5">
       <div className="rounded-2xl p-5 mb-5 text-white" style={{ background: `linear-gradient(135deg, ${DARK_BLUE}, ${BLUE})`, boxShadow: `0 8px 20px ${BLUE}4D` }}>
-        <p className="text-white/70 text-sm mb-1">Total à percevoir</p>
-        <p className="text-2xl font-bold">{Number(data?.total_a_payer ?? 0).toLocaleString('fr-FR')} FCFA</p>
+        <p className="text-white/70 text-sm mb-1">Revenus totaux perçus</p>
+        <p className="text-2xl font-bold">{Number(stats.revenus_total ?? 0).toLocaleString('fr-FR')} FCFA</p>
         <div className="flex gap-4 mt-4">
-          <div><p className="text-white/60 text-xs">Perçu</p><p className="font-bold">{Number(data?.total_paye ?? 0).toLocaleString('fr-FR')} FCFA</p></div>
+          <div><p className="text-white/60 text-xs">Ce mois-ci</p><p className="font-bold">{Number(stats.revenus_mois ?? 0).toLocaleString('fr-FR')} FCFA</p></div>
           <div className="w-px bg-white/20" />
-          <div><p className="text-white/60 text-xs">En attente</p><p className="font-bold">{Number(data?.en_attente ?? 0).toLocaleString('fr-FR')} FCFA</p></div>
+          <div><p className="text-white/60 text-xs">En attente</p><p className="font-bold">{Number(enAttenteMontant).toLocaleString('fr-FR')} FCFA</p></div>
+          <div className="w-px bg-white/20" />
+          <div><p className="text-white/60 text-xs">En retard</p><p className="font-bold">{stats.loyers_en_retard ?? 0}</p></div>
         </div>
       </div>
-      {loyers.length === 0 ? (
+      {sorted.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: BLUE + '15' }}>
             <svg viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth={1.5} className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -594,15 +605,17 @@ function LoyersTab() {
           <p className="font-bold text-text-dark mb-1">Aucun loyer</p>
           <p className="text-sm text-text-grey">Les loyers apparaîtront ici</p>
         </div>
-      ) : loyers.map((l: any, i: number) => (
-        <div key={i} className="bg-white rounded-xl p-4 mb-3 shadow-sm flex items-center justify-between">
+      ) : sorted.map((l: any, i: number) => (
+        <div key={l.id || i} className="bg-white rounded-xl p-4 mb-3 shadow-sm flex items-center justify-between">
           <div>
             <p className="font-bold text-text-dark text-sm">{typeLabel(l.bien?.type || '')} — {l.bien?.localisation?.ville || '—'}</p>
             <p className="text-xs text-text-grey mt-0.5">{l.locataire?.prenom} {l.locataire?.nom}</p>
           </div>
           <div className="text-right">
             <p className="font-bold text-text-dark text-sm">{Number(l.montant).toLocaleString('fr-FR')} FCFA</p>
-            <span className={`text-xs font-semibold ${l.statut === 'paye' ? 'text-success' : 'text-warning'}`}>{l.statut === 'paye' ? 'Payé' : 'En attente'}</span>
+            <span className={`text-xs font-semibold ${l.statut === 'paye' ? 'text-success' : l.statut === 'en_retard' ? 'text-danger' : 'text-warning'}`}>
+              {l.statut === 'paye' ? 'Payé' : l.statut === 'en_retard' ? 'En retard' : 'En attente'}
+            </span>
           </div>
         </div>
       ))}
@@ -700,6 +713,8 @@ function PortefeuilleTab() {
 function ProfilTab({ user, onOpenDelegations }: { user: any; onOpenDelegations: () => void }) {
   const navigate = useNavigate()
   const { logout } = useAuth()
+  const [editOpen, setEditOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
   const initials = `${user?.prenom?.[0] || ''}${user?.nom?.[0] || ''}`.toUpperCase()
   const score = user?.score_credibilite ?? 100
   return (
@@ -722,12 +737,14 @@ function ProfilTab({ user, onOpenDelegations }: { user: any; onOpenDelegations: 
         </div>
       </div>
       <div className="px-4 space-y-2">
-        {[{ label: 'Modifier le profil', to: '/profil/edit' }, { label: 'Changer le mot de passe', to: '/profil/password' }].map(item => (
-          <button key={item.label} onClick={() => navigate(item.to)} className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm">
-            <span className="text-sm font-semibold text-text-dark">{item.label}</span>
-            <IcChevron />
-          </button>
-        ))}
+        <button onClick={() => setEditOpen(true)} className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm">
+          <span className="text-sm font-semibold text-text-dark">Modifier le profil</span>
+          <IcChevron />
+        </button>
+        <button onClick={() => setPasswordOpen(true)} className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm">
+          <span className="text-sm font-semibold text-text-dark">Changer le mot de passe</span>
+          <IcChevron />
+        </button>
         <button onClick={onOpenDelegations} className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm">
           <span className="text-sm font-semibold text-text-dark">Délégations de gestion</span>
           <IcChevron />
@@ -736,6 +753,8 @@ function ProfilTab({ user, onOpenDelegations }: { user: any; onOpenDelegations: 
           Se déconnecter
         </button>
       </div>
+      <EditProfileModal open={editOpen} onClose={() => setEditOpen(false)} />
+      <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
     </div>
   )
 }
