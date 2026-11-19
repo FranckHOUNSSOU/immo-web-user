@@ -1,0 +1,108 @@
+import PasswordInput from '../ui/PasswordInput'
+import { useEffect, useState } from 'react'
+import { ModalSheet } from '../ui/ModalSheet'
+import { walletApi } from '../../api/walletApi'
+import { validateBeninPhone, localBeninDigits, PHONE_FORMAT_HINT, PHONE_PLACEHOLDER } from '../../utils/phone'
+import { apiMessage } from '../../utils/apiMessage'
+import { PhoneInput } from '../../shared/saisie/champs'
+
+/**
+ * Changement du NUMÉRO de retrait Mobile Money (flow OTP en 2 étapes), partagé entre tous les
+ * espaces. Le numéro est prérempli depuis le compte. Un vrai changement suspend les retraits 48 h
+ * (décidé par le serveur). L'opérateur n'est pas ici : il se choisit dans le formulaire de retrait.
+ */
+export default function NumeroRetraitModal({ current, onClose, onSaved, accent = 'var(--c-brand)' }: { current: string | null; onClose: () => void; onSaved: (numero: string) => void; accent?: string }) {
+  const [step, setStep] = useState<'form' | 'otp'>('form')
+  const [numero, setNumero] = useState('')
+  const [motDePasse, setMotDePasse] = useState('')
+  const [otp, setOtp] = useState('')
+  const [sessionToken, setSessionToken] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  // Préremplissage : sans effet si la personne a déjà commencé à saisir.
+  useEffect(() => {
+    let actif = true
+    walletApi.numeroRetrait().then(info => {
+      if (!actif) return
+      setNumero(prev => prev || localBeninDigits(info.numero_retrait ?? ''))
+    }).catch(() => { /* la personne saisit à la main */ })
+    return () => { actif = false }
+  }, [])
+
+  const initier = async () => {
+    if (!validateBeninPhone(numero)) { setError(PHONE_FORMAT_HINT); return }
+    if (!motDePasse) { setError('Entrez votre mot de passe pour confirmer.'); return }
+    setError(''); setSubmitting(true)
+    try {
+      const res = await walletApi.initierChangementNumeroRetrait(localBeninDigits(numero), motDePasse)
+      setSessionToken(res.session_token)
+      setStep('otp')
+    } catch (e: unknown) {
+      setError(apiMessage(e) || 'Impossible de vérifier ces informations.')
+    }
+    setSubmitting(false)
+  }
+
+  const confirmer = async () => {
+    if (!otp.trim()) { setError('Entrez le code reçu par SMS.'); return }
+    setError(''); setSubmitting(true)
+    try {
+      await walletApi.confirmerChangementNumeroRetrait(sessionToken, otp.trim(), localBeninDigits(numero))
+      onSaved(numero.trim())
+    } catch (e: unknown) {
+      setError(apiMessage(e) || 'Code invalide ou expiré.')
+    }
+    setSubmitting(false)
+  }
+
+  return (
+    <ModalSheet open onClose={onClose} label="Numéro de retrait" placement="center" panelClassName="w-full max-w-sm" backdropOpacity={0.5} zIndex={60}>
+      <div className="bg-navy-900 rounded-2xl w-full border border-navy-700">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-navy-700">
+          <h2 className="font-bold text-proprio-text">Numéro de retrait</h2>
+          <button onClick={onClose} aria-label="Fermer" className="w-8 h-8 flex items-center justify-center rounded-lg bg-navy-900 text-proprio-muted flex-shrink-0">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          {current && step === 'form' && (
+            <p className="text-xs text-proprio-muted">Numéro actuel : <span className="font-semibold text-proprio-text">{current}</span></p>
+          )}
+          {error && (
+            <div role="alert" className="px-3.5 py-2.5 rounded-xl text-sm font-semibold" style={{ background: 'rgba(239,68,68,0.078)', color: 'var(--tx-red)', border: '1px solid rgba(239,68,68,0.188)' }}>{error}</div>
+          )}
+
+          {step === 'form' ? (
+            <>
+              <div>
+                <label htmlFor="numero-retrait-modal-64" className="text-xs font-bold text-proprio-text uppercase tracking-wide mb-2 block">Numéro Mobile Money</label>
+                <PhoneInput id="numero-retrait-modal-64" value={numero} onChange={e => setNumero(e.target.value)} placeholder={PHONE_PLACEHOLDER}
+                  className="w-full bg-navy-800 border border-navy-700 rounded-xl px-4 py-3 text-sm outline-none text-proprio-text focus:border-brand" />
+              </div>
+              <div>
+                <label htmlFor="numero-retrait-modal-69" className="text-xs font-bold text-proprio-text uppercase tracking-wide mb-2 block">Mot de passe (confirmation)</label>
+                <PasswordInput id="numero-retrait-modal-69" value={motDePasse} onChange={e => setMotDePasse(e.target.value)} placeholder="••••••••"
+                  className="w-full bg-navy-800 border border-navy-700 rounded-xl px-4 py-3 text-sm outline-none text-proprio-text focus:border-brand" />
+              </div>
+              <p className="text-caption text-proprio-muted">Un code sera envoyé par SMS sur le numéro principal de votre compte pour confirmer ce changement. Par sécurité, les retraits sont ensuite suspendus 48 h si le numéro change. L&apos;opérateur, lui, se choisit à chaque retrait.</p>
+              {current && <p className="text-caption text-proprio-muted">L&apos;ancien numéro recevra un SMS avec un lien pour annuler ce changement pendant 7 jours.</p>}
+              <button onClick={initier} disabled={submitting}
+                className="w-full py-3.5 rounded-xl text-white font-bold text-sm disabled:opacity-60" style={{ background: accent }}>
+                {submitting ? 'Vérification…' : 'Recevoir le code'}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-proprio-muted">Entrez le code reçu par SMS pour confirmer le numéro <span className="font-semibold text-proprio-text">{numero}</span>.</p>
+              <input type="text" inputMode="numeric" value={otp} onChange={e => setOtp(e.target.value)} placeholder="Code à 6 chiffres" aria-label="Code reçu par SMS"
+                className="w-full bg-navy-800 border border-navy-700 rounded-xl px-4 py-3 text-sm text-center tracking-[0.3em] font-bold outline-none text-proprio-text focus:border-brand" />
+              <button onClick={confirmer} disabled={submitting}
+                className="w-full py-3.5 rounded-xl text-white font-bold text-sm disabled:opacity-60" style={{ background: accent }}>
+                {submitting ? 'Confirmation…' : 'Confirmer'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </ModalSheet>
+  )
+}

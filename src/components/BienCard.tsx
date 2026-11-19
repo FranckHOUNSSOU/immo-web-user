@@ -1,9 +1,19 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '../api/queryKeys'
+import { API_ORIGIN } from '../api/apiBase'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/useAuth'
+import { useTheme } from '../context/useTheme'
 import { favoritesApi } from '../api/favoritesApi'
+import { track } from '../lib/analytics'
+import type { Bien } from '../types/api'
+import { imageDeCouverture } from '../utils/imageCouverture'
+import { suffixeUnite } from '../utils/prix'
+import { nomEtDescription, resumeCapacite } from '../utils/guesthouse'
+import { resumeSalle } from '../utils/salleFete'
 
-const BACKEND = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1').replace('/api/v1', '') + '/'
+const BACKEND = API_ORIGIN + '/'
 
 function resolveUrl(url: string) {
   if (!url) return '/placeholder.jpg'
@@ -11,78 +21,131 @@ function resolveUrl(url: string) {
   return BACKEND + url
 }
 
-type Props = {
-  bien: any
-  favoriteIds?: Set<number>
-  onFavoriteToggle?: (id: number, added: boolean) => void
+function fmtAddedDate(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  } catch { return '' }
 }
 
-export default function BienCard({ bien, favoriteIds, onFavoriteToggle }: Props) {
-  const navigate = useNavigate()
+type Props = {
+  bien: Bien
+  favoriteIds?: Set<number>
+  onFavoriteToggle?: (id: number, added: boolean) => void
+  distanceKm?: number | null
+  showPhotoCount?: boolean
+  showAddedDate?: boolean
+}
+
+export default function BienCard({ bien, favoriteIds, onFavoriteToggle, distanceKm, showPhotoCount, showAddedDate }: Props) {
+  const navigate  = useNavigate()
   const { isLoggedIn } = useAuth()
-  const [isFav, setIsFav] = useState(favoriteIds?.has(bien.id) ?? false)
-  const [toggling, setToggling] = useState(false)
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
+
+  const queryClient = useQueryClient()
+  const [isFav,     setIsFav]     = useState(favoriteIds?.has(bien.id) ?? false)
+  const [toggling,  setToggling]  = useState(false)
   const [favPopped, setFavPopped] = useState(false)
+  const [favError, setFavError] = useState(false)
 
   useEffect(() => {
     setIsFav(favoriteIds?.has(bien.id) ?? false)
   }, [favoriteIds, bien.id])
 
-  const cover = bien.photos?.find((p: any) => p.is_cover) || bien.photos?.[0]
-  const coverUrl = cover ? resolveUrl(cover.url) : null
+  // Vignette (480 px) si elle existe : l'image de la carte est l'élément le plus lourd de l'accueil (FE-D-002).
+  const couverture = imageDeCouverture(bien.photos, resolveUrl, '(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 300px')
 
   const isLocation = bien.transaction === 'location'
+
   const typeLabel: Record<string, string> = {
     maison:         'Maison',
     appart_vide:    'Appartement vide',
     appart_meuble:  'Appartement meublé',
     guesthouse:     'Guesthouse',
+    salle_fete:     'Salle de fêtes',
     terrain:        'Terrain',
   }
-  const label = typeLabel[bien.type] || bien.type
+  const sousTypeLabel: Record<string, string> = {
+    entree_coucher: 'Entrée-Coucher',
+    chambre_salon:  'Chambre-Salon',
+    studio:         'Studio',
+    f2: 'F2', f3: 'F3', f4: 'F4', f5: 'F5',
+    // Lot 2 : sous-types du référentiel enregistrés en type « maison » (sinon tous affichés « Maison »).
+    villa: 'Villa', duplex: 'Duplex', villa_maison: 'Villa',
+    boutique: 'Boutique', bureau: 'Bureau', local_commercial: 'Local commercial', showroom: 'Showroom',
+  }
+  const sousType = typeof bien.amenites?.sous_type === 'string' ? bien.amenites.sous_type : undefined
+  const isGuesthouse = bien.type === 'guesthouse'
+  const isSalleFete  = bien.type === 'salle_fete'
+  // Guesthouse et salle de fêtes : leur nom (1re ligne de la description) plutôt qu'un sous-type d'appartement
+  const label    = isGuesthouse || isSalleFete
+    ? (nomEtDescription(bien).nom ?? typeLabel[bien.type])
+    : (sousType && sousTypeLabel[sousType]) || typeLabel[bien.type] || bien.type
+  const title    = bien.localisation?.quartier ? `${label} — ${bien.localisation.quartier}` : label
+  const capacite = isGuesthouse ? resumeCapacite(bien.details_guesthouse)
+    : isSalleFete ? resumeSalle(bien.details_salle_fete)
+    : null
+
+  /* ── Tokens thème ── */
+  const textPrimary  = isDark ? '#E8E8EF'                : '#1D1D1F'
+  const textSecond   = isDark ? 'rgba(255,255,255,0.72)' : 'rgba(0,0,0,0.70)'
+  const textMuted    = isDark ? 'rgba(255,255,255,0.58)' : 'rgba(0,0,0,0.58)'  // AA ≥ 4,5:1
+  const iconMuted    = isDark ? 'rgba(255,255,255,0.30)' : 'rgba(0,0,0,0.30)'
+  const emptyBg      = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'
 
   const handleFav = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!isLoggedIn) { navigate('/login'); return }
+    if (!isLoggedIn) {
+      sessionStorage.setItem('post_login_redirect', window.location.pathname + window.location.search)
+      navigate('/login')
+      return
+    }
     if (toggling) return
     setToggling(true)
+    setFavError(false)
     setFavPopped(true)
     setTimeout(() => setFavPopped(false), 400)
     try {
-      if (isFav) {
-        await favoritesApi.remove(bien.id)
-        setIsFav(false)
-        onFavoriteToggle?.(bien.id, false)
-      } else {
-        await favoritesApi.add(bien.id)
-        setIsFav(true)
-        onFavoriteToggle?.(bien.id, true)
-      }
-    } catch (_) {}
+      const { isFavori } = await favoritesApi.toggle(bien.id)
+      setIsFav(isFavori)
+      if (isFavori) track('favori_ajoute', { type: bien.type })
+      // Sans gestionnaire (fiche, suggestions), le cache des favoris est relu ici : les cœurs des
+      // autres écrans et la page Favoris restent justes (FE-A-004).
+      if (onFavoriteToggle) onFavoriteToggle(bien.id, isFavori)
+      else void queryClient.invalidateQueries({ queryKey: queryKeys.favoris })
+    } catch {
+      // Le cœur garde son état réel ; la personne peut simplement recliquer.
+      setFavError(true)
+      setTimeout(() => setFavError(false), 3000)
+    }
     setToggling(false)
   }
 
   return (
-    <div
-      onClick={() => navigate(`/biens/${bien.id}`)}
-      className="glass-card rounded-2xl overflow-hidden cursor-pointer group"
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- survol purement décoratif ; la carte contient de vrais liens focalisables
+    <article
+      className="relative flex flex-col h-full glass-card rounded-[22px] overflow-hidden cursor-pointer group focus-within:outline-2 focus-within:outline-brand focus-within:outline-offset-2"
       style={{ transition: 'transform 0.25s cubic-bezier(0.22,0.61,0.36,1), box-shadow 0.25s ease' }}
       onMouseEnter={e => {
-        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-6px)'
-        ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 20px 48px rgba(0,0,0,0.12), inset 0 1.5px 0 rgba(255,255,255,0.95)'
+        const el = e.currentTarget as HTMLElement
+        el.style.transform = 'translateY(-6px)'
+        el.style.boxShadow = isDark
+          ? '0 20px 48px rgba(0,0,0,0.40), inset 0 1.5px 0 rgba(255,255,255,0.12)'
+          : '0 20px 48px rgba(0,0,0,0.14), inset 0 1.5px 0 rgba(255,255,255,0.95)'
       }}
       onMouseLeave={e => {
-        (e.currentTarget as HTMLDivElement).style.transform = ''
-        ;(e.currentTarget as HTMLDivElement).style.boxShadow = ''
+        const el = e.currentTarget as HTMLElement
+        el.style.transform = ''
+        el.style.boxShadow = ''
       }}
     >
-      {/* Image */}
-      <div className="relative h-44 md:h-52 img-zoom">
-        {coverUrl ? (
-          <img src={coverUrl} alt={label} className="w-full h-full object-cover" loading="lazy" />
+      {/* ── Image ── */}
+      <div className="relative h-44 sm:h-48 md:h-52 lg:h-56 flex-shrink-0 img-zoom">
+        {couverture ? (
+          <img src={couverture.src} srcSet={couverture.srcSet} sizes={couverture.sizes} alt={label} className="w-full h-full object-cover" loading="lazy" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.04)' }}>
-            <svg className="w-12 h-12" style={{ color: 'rgba(0,0,0,0.18)' }} fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+          <div className="w-full h-full flex items-center justify-center" style={{ background: emptyBg }}>
+            <svg className="w-12 h-12" style={{ color: iconMuted }} fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
             </svg>
           </div>
@@ -93,7 +156,7 @@ export default function BienCard({ bien, favoriteIds, onFavoriteToggle }: Props)
           <span
             className="px-2.5 py-1 rounded-full text-xs font-bold text-white"
             style={{
-              background: isLocation ? 'rgba(75,107,255,0.88)' : 'rgba(255,107,53,0.88)',
+              background: isLocation ? 'rgba(58,90,238,0.94)' : 'rgba(194,65,12,0.94)',
               backdropFilter: 'blur(12px)',
               border: '1px solid rgba(255,255,255,0.3)',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3)',
@@ -101,53 +164,105 @@ export default function BienCard({ bien, favoriteIds, onFavoriteToggle }: Props)
           >
             {isLocation ? 'À LOUER' : 'À VENDRE'}
           </span>
+          {isGuesthouse && (
+            <span className="ml-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-white"
+              style={{ background: 'rgba(13,148,136,0.94)', border: '1px solid rgba(255,255,255,0.3)' }}>
+              GUESTHOUSE
+            </span>
+          )}
+          {isSalleFete && (
+            <span className="ml-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-white"
+              style={{ background: 'rgba(124,58,237,0.94)', border: '1px solid rgba(255,255,255,0.3)' }}>
+              SALLE DE FÊTES
+            </span>
+          )}
         </div>
 
         {/* Bouton favori */}
         <button
+          type="button"
           onClick={handleFav}
-          className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-transform hover:scale-110 ${favPopped ? 'fav-pop' : ''}`}
+          aria-pressed={isFav}
+          aria-label={`Favori : ${title}`}
+          className={`absolute top-1.5 right-1.5 z-10 w-11 h-11 rounded-full flex items-center justify-center transition-transform hover:scale-110 ${favPopped ? 'fav-pop' : ''}`}
           style={{
-            background: 'rgba(255,255,255,0.80)',
+            background: isDark ? 'rgba(30,30,44,0.80)' : 'rgba(255,255,255,0.80)',
             backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255,255,255,0.95)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,1), 0 2px 8px rgba(0,0,0,0.10)',
+            border: isDark ? '1px solid rgba(255,255,255,0.14)' : '1px solid rgba(255,255,255,0.95)',
+            boxShadow: isDark
+              ? 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 8px rgba(0,0,0,0.40)'
+              : 'inset 0 1px 0 rgba(255,255,255,1), 0 2px 8px rgba(0,0,0,0.10)',
           }}
         >
-          <svg viewBox="0 0 24 24" fill={isFav ? '#FF3B30' : 'none'} stroke={isFav ? '#FF3B30' : 'rgba(0,0,0,0.5)'} strokeWidth={2} className="w-4 h-4 transition-colors duration-200">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          <svg viewBox="0 0 24 24"
+            fill={isFav ? 'var(--c-brand)' : 'none'}
+            stroke={isFav ? 'var(--c-brand)' : (isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.5)')}
+            strokeWidth={2}
+            className="w-4 h-4 transition-colors duration-200"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
         </button>
+        {favError && (
+          <p role="alert" className="absolute top-14 right-3 z-10 px-2 py-1 rounded-lg text-micro font-semibold text-white" style={{ background: 'var(--c-danger)' }}>
+            Favori non enregistré
+          </p>
+        )}
 
-        {/* Gradient bottom pour lisibilité du texte */}
+        {/* Gradient bas pour lisibilité */}
         <div className="absolute bottom-0 left-0 right-0 h-14 pointer-events-none"
           style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 100%)' }} />
+
+        {/* Badge nombre de photos */}
+        {showPhotoCount && (bien.photos?.length ?? 0) > 0 && (
+          <div className="absolute bottom-3 left-3 flex items-center gap-1.5 px-2 py-1 rounded-lg text-white text-xs font-semibold"
+            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)' }}>
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            {bien.photos?.length}
+          </div>
+        )}
       </div>
 
-      {/* Infos */}
-      <div className="p-3.5">
-        <p className="text-base md:text-lg font-bold leading-tight" style={{ color: '#1D1D1F' }}>
+      {/* ── Infos ── */}
+      <div className="p-4 flex-1 flex flex-col">
+        <p className="text-lg md:text-xl font-bold leading-tight tracking-tight" style={{ color: textPrimary }}>
           {Number(bien.prix).toLocaleString('fr-FR')}{' '}
-          <span className="text-sm font-medium" style={{ color: 'rgba(0,0,0,0.38)' }}>
-            FCFA{isLocation ? '/mois' : ''}
+          <span className="text-sm font-medium" style={{ color: textMuted }}>
+            FCFA{suffixeUnite(bien)}
           </span>
         </p>
-        <p className="text-sm font-medium mt-0.5" style={{ color: 'rgba(0,0,0,0.58)' }}>{label}</p>
-        <div className="flex items-center gap-1 mt-1.5">
-          <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'rgba(0,0,0,0.30)' }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        <h3 className="text-sm font-semibold mt-1 truncate" style={{ color: textSecond }}>
+          {/* Vrai lien (clavier, clic milieu, nouvel onglet) étendu à toute la carte */}
+          <Link to={`/biens/${bien.id}`} className="outline-none after:absolute after:inset-0 after:content-['']">
+            {title}
+          </Link>
+        </h3>
+        {capacite && (
+          <p className="text-xs mt-1 font-medium" style={{ color: textSecond }}>{capacite}</p>
+        )}
+        <div className="flex items-center gap-1 mt-auto pt-2">
+          <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: iconMuted }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          <p className="text-xs truncate" style={{ color: 'rgba(0,0,0,0.42)' }}>
+          <p className="text-xs truncate min-w-0 flex-1" style={{ color: textMuted }}>
             {bien.localisation?.quartier ? `${bien.localisation.quartier}, ` : ''}{bien.localisation?.ville || '—'}
           </p>
+          {distanceKm != null && (
+            <span className="flex-shrink-0 text-caption font-semibold" style={{ color: 'var(--tx-blue)' }}>
+              à {distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`}
+            </span>
+          )}
         </div>
-        {bien.frais_visite && Number(bien.frais_visite) > 0 && (
-          <p className="hidden md:block text-xs mt-2 pt-2" style={{ color: 'rgba(0,0,0,0.30)', borderTop: '1px solid rgba(0,0,0,0.07)' }}>
-            Frais visite : <span className="font-semibold" style={{ color: '#FF6B35' }}>{Number(bien.frais_visite).toLocaleString('fr-FR')} FCFA</span>
+        {showAddedDate && bien.created_at && (
+          <p className="text-caption mt-2" style={{ color: textMuted }}>
+            Ajouté le {fmtAddedDate(bien.created_at)}
           </p>
         )}
       </div>
-    </div>
+    </article>
   )
 }

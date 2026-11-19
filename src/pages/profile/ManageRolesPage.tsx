@@ -1,21 +1,32 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth } from '../../context/useAuth'
+import { usePageTitle } from '../../utils/usePageTitle'
 import { rolesApi } from '../../api/rolesApi'
+import { apiMessage } from '../../utils/apiMessage'
+import { withAlpha } from '../../utils/color'
+import { useConfirm } from '../../shared/dialogues/useConfirm'
+import { ESPACE_PAR_ROLE, etatRole, MAX_ROLES_ACTIFS } from '../../utils/roles'
 
 type RoleInfo = {
   key: string
   label: string
   desc: string
   color: string
+  /** Fond plein sous un texte blanc (ne s'éclaircit pas en sombre, FE-B-024). */
+  fill: string
   bg: string
+  icon: React.ReactNode
 }
 
+const IcSearch = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.2-5.2m2.2-5.3a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" /></svg>
+const IcHome = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+const IcKey = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 7a4 4 0 11-8.6 2.4L2 14v3h3v-2h2v-2h2l1.6-1.6A4 4 0 0115 7z" /><circle cx="15.5" cy="6.5" r=".6" fill="currentColor" /></svg>
+
 const ROLES: RoleInfo[] = [
-  { key: 'prospect',     label: 'Prospect',     desc: 'Chercher à louer ou acheter un bien',           color: '#4B6BFF', bg: 'rgba(75,107,255,0.1)' },
-  { key: 'proprietaire', label: 'Propriétaire', desc: 'Publier et gérer vos biens immobiliers',         color: '#2E86C1', bg: 'rgba(46,134,193,0.1)' },
-  { key: 'demarcheur',   label: 'Agent',        desc: 'Mandataire immobilier — gérer des biens clients', color: '#9B59B6', bg: 'rgba(155,89,182,0.1)' },
-  { key: 'locataire',    label: 'Locataire',    desc: 'Accéder à votre logement et payer vos loyers',   color: '#22C55E', bg: 'rgba(34,197,94,0.1)' },
+  { key: 'prospect',     label: 'Prospect',     desc: 'Chercher à louer ou acheter un bien',            color: 'var(--tx-blue)', fill: 'var(--c-primary)', bg: 'rgba(75,107,255,0.1)',  icon: <IcSearch /> },
+  { key: 'proprietaire', label: 'Propriétaire', desc: 'Publier et gérer vos biens immobiliers',          color: 'var(--tx-steel)', fill: 'var(--c-fill-steel)', bg: 'rgba(46,134,193,0.1)',  icon: <IcHome /> },
+  { key: 'locataire',    label: 'Locataire',    desc: 'Accéder à votre logement et payer vos loyers — obtenu en rejoignant un bien via un code d\'invitation', color: 'var(--tx-green)', fill: 'var(--c-fill-green)', bg: 'rgba(34,197,94,0.1)',   icon: <IcKey /> },
 ]
 
 function roleLabel(key: string) {
@@ -23,13 +34,15 @@ function roleLabel(key: string) {
 }
 
 export default function ManageRolesPage() {
-  const { user, rolesActifs, updateUser } = useAuth()
+  usePageTitle('Gérer mes rôles')
+  const { user, rolesActifs, updateUser, activeRole, setActiveRole } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState<string | null>(null)
   const [justif, setJustif] = useState('')
   const [activating, setActivating] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const { confirmer } = useConfirm()
 
   const rolePrincipal = user?.role_principal || user?.role || ''
   const actifs = rolesActifs
@@ -37,186 +50,180 @@ export default function ManageRolesPage() {
   const activerRole = async (role: string) => {
     setLoading(role); setError('')
     try {
-      await rolesApi.activer(role, justif || undefined)
+      await rolesApi.activer(role)
       const newRoles = [...actifs, role]
       updateUser({ roles_actifs: newRoles })
       setActivating(null); setJustif('')
       setSuccess(`Rôle "${roleLabel(role)}" activé avec succès.`)
       setTimeout(() => setSuccess(''), 3000)
-    } catch (e: any) {
-      setError(e?.response?.data?.message || `Impossible d'activer ce rôle.`)
+    } catch (e: unknown) {
+      setError(apiMessage(e) || `Impossible d'activer ce rôle.`)
+    } finally {
+      setLoading(null)
     }
-    setLoading(null)
   }
 
   const desactiverRole = async (role: string) => {
-    if (!confirm(`Désactiver le rôle "${roleLabel(role)}" ?`)) return
+    const ok = await confirmer({
+      titre: `Désactiver l’espace ${roleLabel(role)} ?`,
+      message: 'Vous pourrez le réactiver plus tard depuis cet écran.',
+      confirmer: 'Désactiver',
+      danger: true,
+    })
+    if (!ok) return
     setLoading(role); setError('')
     try {
       await rolesApi.desactiver(role)
       const newRoles = actifs.filter(r => r !== role)
       updateUser({ roles_actifs: newRoles })
+      // setActiveRole uniquement après updateUser pour éviter un état incohérent
+      if (role === activeRole) setActiveRole(rolePrincipal)
       setSuccess(`Rôle "${roleLabel(role)}" désactivé.`)
       setTimeout(() => setSuccess(''), 3000)
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Impossible de désactiver ce rôle.')
+    } catch (e: unknown) {
+      setError(apiMessage(e) || 'Impossible de désactiver ce rôle.')
+      // Ne pas toucher activeRole en cas d'échec API
+    } finally {
+      setLoading(null)
     }
-    setLoading(null)
   }
 
   const goToDashboard = (role: string) => {
-    if (role === 'proprietaire') navigate('/proprietaire')
-    else if (role === 'demarcheur') navigate('/demarcheur')
-    else if (role === 'locataire') navigate('/locataire')
-    else navigate('/')
+    setActiveRole(role)
+    navigate(ESPACE_PAR_ROLE[role] ?? '/')
   }
 
-  const disponibles = ROLES.filter(r => !actifs.includes(r.key) && r.key !== rolePrincipal)
-  const actifsList  = ROLES.filter(r => actifs.includes(r.key))
+  // Ordre fixe : les cartes ne changent pas de place quand on bascule d'espace
+  // (l'espace courant se repère à son badge et à sa bordure).
+  const ordered = ROLES
 
   return (
-    <div className="min-h-full flex flex-col">
+    <div className="min-h-full flex flex-col bg-[#F4F6FA] dark:bg-[#0F0F14]">
       {/* Header */}
-      <div className="flex-shrink-0 px-5 pt-14 md:pt-6 pb-5"
-        style={{ background: 'linear-gradient(135deg,#1A1A2E,#4B6BFF)', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
-        <div className="max-w-2xl mx-auto flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-xl flex-shrink-0"
+      <div className="flex-shrink-0 px-5 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] md:pt-8 pb-6 md:pb-8"
+        style={{ background: 'linear-gradient(135deg,#1A1A2E,var(--c-brand))', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
+        <div className="max-w-3xl mx-auto flex items-center gap-4">
+          <button aria-label="Retour" onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-xl flex-shrink-0"
             style={{ background: 'rgba(255,255,255,0.12)' }}>
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
           </button>
           <div>
-            <p className="text-white font-bold text-lg">Gérer mes rôles</p>
-            <p className="text-white/60 text-xs mt-0.5">Activez ou désactivez vos rôles</p>
+            <p className="text-white font-bold text-lg md:text-xl">Espaces & rôles</p>
+            <p className="text-white/60 text-xs md:text-sm mt-0.5">Basculez entre vos espaces ou activez-en un nouveau</p>
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-5 py-6 space-y-5 pb-10">
+        <div className="max-w-3xl mx-auto px-5 py-6 pb-10">
 
-          {error && (
-            <div className="px-4 py-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
-              <p className="text-red-500 text-sm">{error}</p>
-            </div>
-          )}
-          {success && (
-            <div className="px-4 py-3 rounded-xl flex items-center gap-2" style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}>
-              <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
-              <p className="text-sm font-semibold" style={{ color: '#22C55E' }}>{success}</p>
-            </div>
-          )}
-
-          {/* Rôle principal */}
-          <div>
-            <p className="text-xs font-bold text-text-grey uppercase tracking-wide mb-2">Rôle principal</p>
-            {ROLES.filter(r => r.key === rolePrincipal).map(r => (
-              <div key={r.key} className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: r.bg, border: `1.5px solid ${r.color}30` }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: r.color }}>
-                  <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-text-dark text-sm">{r.label}</p>
-                  <p className="text-xs text-text-grey mt-0.5">{r.desc}</p>
-                </div>
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: r.color, color: 'white' }}>Principal</span>
+          <div role="alert" aria-live="assertive" aria-atomic="true">
+            {error && (
+              <div className="px-4 py-3 rounded-xl mb-4" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <p className="text-red-500 text-sm">{error}</p>
               </div>
-            ))}
+            )}
           </div>
+          {success && (
+            <div className="px-4 py-3 rounded-xl flex items-center gap-2 mb-4" style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}>
+              <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="var(--c-green)" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <p className="text-sm font-semibold" style={{ color: 'var(--tx-green)' }}>{success}</p>
+            </div>
+          )}
 
-          {/* Rôles actifs secondaires */}
-          {actifsList.filter(r => r.key !== rolePrincipal).length > 0 && (
-            <div>
-              <p className="text-xs font-bold text-text-grey uppercase tracking-wide mb-2">Rôles actifs</p>
-              <div className="space-y-2">
-                {actifsList.filter(r => r.key !== rolePrincipal).map(r => (
-                  <div key={r.key} className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.85)', border: `1px solid ${r.color}25`, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: r.bg }}>
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke={r.color} strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          <div className="grid md:grid-cols-2 gap-3">
+            {ordered.map(r => {
+              const isActiveNow = r.key === activeRole
+              const isPrincipal = r.key === rolePrincipal
+              const isActif = actifs.includes(r.key)
+              const isDisponible = !isActif
+              const busy = loading === r.key
+
+              const statusLabel = isActiveNow ? 'Espace actuel' : isPrincipal ? 'Rôle principal' : isActif ? 'Actif' : null
+
+              return (
+                <div key={r.key} className="rounded-2xl overflow-hidden transition-shadow hover:shadow-md"
+                  style={{
+                    background: 'rgb(255,255,255)',
+                    border: isActiveNow ? `1.5px solid ${r.color}` : '1px solid rgba(0,0,0,0.07)',
+                    boxShadow: isActiveNow ? `0 4px 16px ${withAlpha(r.color, '25')}` : '0 1px 3px rgba(0,0,0,0.03)',
+                  }}>
+                  <div className="p-4 flex items-start gap-3">
+                    <div className="w-11 h-11 rounded-[13px] flex items-center justify-center flex-shrink-0" style={{ background: isDisponible ? 'rgba(0,0,0,0.05)' : r.fill, color: isDisponible ? '#8A93A3' : 'rgb(255,255,255)' }}>
+                      {r.icon}
                     </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-text-dark text-sm">{r.label}</p>
-                      <p className="text-xs text-text-grey mt-0.5">{r.desc}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => goToDashboard(r.key)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold"
-                        style={{ background: r.bg, color: r.color }}>
-                        Accéder
-                      </button>
-                      <button onClick={() => desactiverRole(r.key)} disabled={loading === r.key}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold border"
-                        style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#EF4444', background: 'rgba(239,68,68,0.06)' }}>
-                        {loading === r.key ? '…' : 'Désactiver'}
-                      </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-text-dark text-sm">{r.label}</p>
+                        {statusLabel && (
+                          <span className="text-micro font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: isActiveNow ? r.fill : r.bg, color: isActiveNow ? 'rgb(255,255,255)' : r.color }}>
+                            {statusLabel}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-text-grey mt-0.5 leading-relaxed">{r.desc}</p>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Rôles disponibles */}
-          {disponibles.length > 0 && (
-            <div>
-              <p className="text-xs font-bold text-text-grey uppercase tracking-wide mb-2">Rôles disponibles</p>
-              <p className="text-xs text-text-grey mb-3">Activez un rôle supplémentaire (max 2 rôles actifs)</p>
-              <div className="space-y-2">
-                {disponibles.map(r => (
-                  <div key={r.key}>
-                    <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.07)' }}>
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(0,0,0,0.05)' }}>
-                        <svg className="w-5 h-5 text-text-grey" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-text-dark text-sm">{r.label}</p>
-                        <p className="text-xs text-text-grey mt-0.5">{r.desc}</p>
-                      </div>
-                      <button onClick={() => setActivating(activating === r.key ? null : r.key)} disabled={actifs.length >= 2}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40"
-                        style={{ background: r.color, color: 'white' }}>
-                        Activer
+                  <div className="px-4 pb-4 flex gap-2">
+                    {etatRole(r.key, actifs) === 'sur_invitation' ? (
+                      // Le statut locataire ne s'auto-active jamais : il vient uniquement
+                      // de la validation d'une demande de liaison à un bien en gestion
+                      // (code d'invitation), jamais d'une activation directe.
+                      <button onClick={() => navigate('/rejoindre-bien')}
+                        className="flex-1 py-2.5 rounded-xl text-white text-xs font-bold transition-opacity hover:opacity-90"
+                        style={{ background: r.fill }}>
+                        Rejoindre un bien
                       </button>
-                    </div>
-                    {activating === r.key && (
-                      <div className="mt-2 px-4 pt-3 pb-4 rounded-xl space-y-3" style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(0,0,0,0.08)' }}>
-                        <p className="text-sm font-semibold text-text-dark">Justification (optionnelle)</p>
-                        <textarea value={justif} onChange={e => setJustif(e.target.value)} rows={2}
-                          placeholder="Ex: Je souhaite aussi proposer des biens à la vente"
-                          className="w-full border border-divider rounded-xl px-3 py-2.5 text-sm outline-none resize-none focus:border-primary" />
-                        <div className="flex gap-2">
-                          <button onClick={() => setActivating(null)} className="flex-1 py-2.5 rounded-xl border border-divider text-sm font-semibold text-text-grey">Annuler</button>
-                          <button onClick={() => activerRole(r.key)} disabled={loading === r.key}
-                            className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-60"
-                            style={{ background: r.color }}>
-                            {loading === r.key ? 'Activation…' : 'Confirmer'}
+                    ) : isDisponible ? (
+                      // Lot 13 : prospect et propriétaire s'activent (ROLES_AUTO_ACTIVABLES du backend).
+                      <button onClick={() => setActivating(activating === r.key ? null : r.key)} disabled={actifs.length >= MAX_ROLES_ACTIFS}
+                        className="flex-1 py-2.5 rounded-xl text-white text-xs font-bold disabled:opacity-40 transition-opacity hover:opacity-90"
+                        style={{ background: r.fill }}>
+                        Activer ce rôle
+                      </button>
+                    ) : (
+                      <>
+                        {!isActiveNow && (
+                          <button onClick={() => goToDashboard(r.key)}
+                            className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-opacity hover:opacity-80"
+                            style={{ background: r.bg, color: r.color }}>
+                            Accéder à cet espace
                           </button>
-                        </div>
-                      </div>
+                        )}
+                        {!isPrincipal && (
+                          <button onClick={() => void desactiverRole(r.key)} disabled={busy}
+                            className={`${isActiveNow ? 'flex-1' : ''} py-2.5 px-3 rounded-xl text-xs font-bold border disabled:opacity-50`}
+                            style={{ borderColor: 'rgba(239,68,68,0.3)', color: 'var(--tx-red)', background: 'rgba(239,68,68,0.06)' }}>
+                            {busy ? '…' : 'Désactiver'}
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Switcher rapide */}
-          {actifsList.length > 1 && (
-            <div>
-              <p className="text-xs font-bold text-text-grey uppercase tracking-wide mb-2">Changer d'espace</p>
-              <div className="grid grid-cols-2 gap-2">
-                {actifsList.map(r => (
-                  <button key={r.key} onClick={() => goToDashboard(r.key)}
-                    className="p-4 rounded-2xl flex flex-col items-center gap-2 transition-all"
-                    style={{ background: r.bg, border: `1.5px solid ${r.color}30` }}>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: r.color }}>
-                      <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                  {activating === r.key && (
+                    <div className="mx-4 mb-4 px-4 pt-3 pb-4 rounded-xl space-y-3" style={{ background: '#F8FAFC', border: '1px solid rgba(0,0,0,0.06)' }}>
+                      <p className="text-sm font-semibold text-text-dark">Justification (optionnelle)</p>
+                      <textarea value={justif} onChange={e => setJustif(e.target.value)} rows={2}
+                        placeholder="Ex: Je souhaite aussi proposer des biens à la vente"
+                        className="w-full border border-divider rounded-xl px-3 py-2.5 text-sm outline-none resize-none focus:border-primary bg-white" />
+                      <div className="flex gap-2">
+                        <button onClick={() => setActivating(null)} className="flex-1 py-2.5 rounded-xl border border-divider text-sm font-semibold text-text-grey bg-white">Annuler</button>
+                        <button onClick={() => activerRole(r.key)} disabled={busy}
+                          className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-60"
+                          style={{ background: r.fill }}>
+                          {busy ? 'Activation…' : 'Confirmer'}
+                        </button>
+                      </div>
                     </div>
-                    <p className="font-bold text-sm" style={{ color: r.color }}>{r.label}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <p className="text-xs text-text-grey text-center mt-5">Vous pouvez activer jusqu'à 3 rôles simultanément.</p>
         </div>
       </div>
     </div>

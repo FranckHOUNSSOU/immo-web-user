@@ -1,52 +1,54 @@
 import axios from 'axios'
+import type { FeedbackVisiteBody, ListResponse, Visite, VisitesConfirmeesResponse } from '../types/api'
+import { BASE, auth } from './apiBase'
+import type { ChoixAnnulation } from '../utils/annulationVisite'
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1'
-
-const auth = () => ({
-  headers: { Authorization: `Bearer ${localStorage.getItem('rg_token') || ''}` },
-})
+export interface ReserverVisiteBody { bien_id: number; date_souhaitee?: string; creneau_id?: number }
 
 export const visitesApi = {
-  mesVisites: () =>
-    axios.get(`${BASE}/visites/mes-visites`, auth()).then(r => r.data),
+  mesVisites: (signal?: AbortSignal) =>
+    axios.get<ListResponse<Visite>>(`${BASE}/visites`, { ...auth(), signal }).then(r => r.data),
 
-  creneaux: (bienId: number) =>
-    axios.get(`${BASE}/visites/creneaux/${bienId}`, auth()).then(r => r.data),
+  reserver: (body: ReserverVisiteBody) =>
+    axios.post<Visite>(`${BASE}/visites`, body, auth()).then(r => r.data),
 
-  reserver: (body: any) =>
-    axios.post(`${BASE}/visites`, body, auth()).then(r => r.data),
+  /** `choix` : visite payée annulée par le prospect — remboursement (défaut) ou report gratuit (≥ 24 h avant). */
+  annuler: (id: number, choix?: ChoixAnnulation) =>
+    axios.patch<Visite>(`${BASE}/visites/${id}/annuler`, choix ? { choix } : {}, auth()).then(r => r.data),
 
-  annuler: (id: number) =>
-    axios.patch(`${BASE}/visites/${id}/annuler`, {}, auth()).then(r => r.data),
-
-  // propriétaire/demarcheur
-  mesCreneaux: () =>
-    axios.get(`${BASE}/visites/mes-creneaux`, auth()).then(r => r.data),
-
-  creerCreneau: (body: any) =>
-    axios.post(`${BASE}/visites/creneaux`, body, auth()).then(r => r.data),
-
-  supprimerCreneau: (id: number) =>
-    axios.delete(`${BASE}/visites/creneaux/${id}`, auth()).then(r => r.data),
-
+  // propriétaire
   reservationsRecues: () =>
-    axios.get(`${BASE}/visites/reservations`, auth()).then(r => r.data),
+    axios.get<ListResponse<Visite>>(`${BASE}/visites`, { ...auth(), params: { role: 'gestionnaire' } }).then(r => r.data),
 
   confirmerVisite: (id: number) =>
-    axios.patch(`${BASE}/visites/${id}/confirmer`, {}, auth()).then(r => r.data),
+    axios.patch<Visite>(`${BASE}/visites/${id}/confirmer`, {}, auth()).then(r => r.data),
 
   refuserVisite: (id: number) =>
-    axios.patch(`${BASE}/visites/${id}/refuser`, {}, auth()).then(r => r.data),
+    axios.patch<Visite>(`${BASE}/visites/${id}/refuser`, {}, auth()).then(r => r.data),
 
   accepterContreProposition: (id: number) =>
-    axios.patch(`${BASE}/visites/${id}/accepter`, {}, auth()).then(r => r.data),
+    axios.patch<Visite>(`${BASE}/visites/${id}/accepter`, {}, auth()).then(r => r.data),
+
+  contreProposer: (id: number, dateProposee: string) =>
+    axios.patch<Visite>(`${BASE}/visites/${id}/contre-proposer`, { date_proposee: dateProposee }, auth()).then(r => r.data),
+
+  /** Client propose une autre date en retour, quand la contre-proposition du gestionnaire ne convient pas. */
+  reProposer: (id: number, dateProposee: string) =>
+    axios.patch<Visite>(`${BASE}/visites/${id}/re-proposer`, { date_proposee: dateProposee }, auth()).then(r => r.data),
 
   marquerEffectuee: (id: number) =>
-    axios.patch(`${BASE}/visites/${id}/marquer-effectuee`, {}, auth()).then(r => r.data),
+    axios.patch<Visite>(`${BASE}/visites/${id}/effectuee`, {}, auth()).then(r => r.data),
 
   deciderIntegration: (id: number, integre: boolean) =>
-    axios.patch(`${BASE}/visites/${id}/integration`, { integre }, auth()).then(r => r.data),
+    axios.patch<Visite>(`${BASE}/visites/${id}/integration`, { decision: integre ? 'accepte' : 'refuse' }, auth()).then(r => r.data),
 
   reserverVisite: (bienId: number, dateSouhaitee: string) =>
-    axios.post(`${BASE}/visites`, { bien_id: bienId, date_souhaitee: dateSouhaitee }, auth()).then(r => r.data),
+    axios.post<Visite>(`${BASE}/visites`, { bien_id: bienId, date_souhaitee: dateSouhaitee }, auth()).then(r => r.data),
+
+  donnerFeedback: (id: number, body: FeedbackVisiteBody) =>
+    axios.patch<Visite>(`${BASE}/visites/${id}/feedback`, body, auth()).then(r => r.data),
+
+  /** Visites confirmées d'un bien — gestionnaire uniquement (compte + dates, sans noms). */
+  visitesConfirmeesParBien: (bienId: number) =>
+    axios.get<VisitesConfirmeesResponse>(`${BASE}/visites/bien/${bienId}/confirmees`, auth()).then(r => r.data),
 }

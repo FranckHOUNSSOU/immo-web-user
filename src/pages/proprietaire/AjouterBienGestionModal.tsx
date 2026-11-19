@@ -1,0 +1,169 @@
+import { useState, useEffect } from 'react'
+import { biensApi } from '../../api/biensApi'
+import QuartierPicker from '../../components/QuartierPicker'
+import { trouverQuartierExact } from '../../data/quartiers'
+import { apiMessage } from '../../utils/apiMessage'
+import { ModalSheet } from '../../components/ui/ModalSheet'
+import type { Bien } from '../../types/api'
+import SelecteurTypeBien from '../../components/SelecteurTypeBien'
+import { coupleBackend, sousTypeParCle } from '../../shared/biens/referentielTypes'
+import { NumberInput } from '../../shared/saisie/champs'
+import { valider } from '../../shared/saisie/validation'
+import { schemaLoyerGestion } from '../../validation/schemas'
+
+type Props = { onClose: () => void; onCreated: (bien: Bien) => void }
+
+
+export default function AjouterBienGestionModal({ onClose, onCreated }: Props) {
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [onClose])
+
+  const [typeBien, setTypeBien] = useState('chambre_salon')
+  const [meuble, setMeuble] = useState(false)
+  const [loyer, setLoyer] = useState('')
+  const [quartier, setQuartier] = useState('')
+  const [ville, setVille] = useState('')
+  const [adresse, setAdresse] = useState('')
+  const [description, setDescription] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
+
+  // Lot 4 : type et sous-type lus dans le référentiel unique (mêmes couples qu'à la publication).
+  const peutEtreMeuble = !!sousTypeParCle(typeBien)?.meuble
+  const estMeuble = peutEtreMeuble && meuble
+  const couple = coupleBackend({ cle: typeBien, meuble: estMeuble })
+  const typeBackend = couple?.type ?? 'appart_vide'
+  const sousType = couple?.sous_type ?? typeBien
+
+  const submit = async () => {
+    // Lot 15 : loyer entier positif (schéma partagé avec les tests).
+    const verifLoyer = valider(schemaLoyerGestion, { loyer })
+    if (!verifLoyer.ok) { setError(loyer.trim() ? verifLoyer.erreurs.loyer : 'Le loyer mensuel est obligatoire'); return }
+    if (!ville.trim()) { setError('La ville est obligatoire'); return }
+    setSaving(true)
+    setError('')
+    try {
+      const body = {
+        type: typeBackend,
+        transaction: 'location',
+        prix: Number(loyer),
+        description: description.trim() || undefined,
+        localisation: {
+          adresse: adresse.trim() || quartier || ville,
+          ville: ville.trim(),
+          quartier: quartier.trim() || undefined,
+          latitude: 6.3654,
+          longitude: 2.4183,
+        },
+        amenites: { sous_type: sousType },
+      }
+      const created = await biensApi.createEnGestion(body)
+      const saved = created.data || created.bien || created
+      setSuccess(true)
+      setTimeout(() => onCreated(saved), 900)
+    } catch (err: unknown) {
+      setError(apiMessage(err) || "Erreur lors de l'ajout du bien")
+    }
+    setSaving(false)
+  }
+
+  return (
+    <ModalSheet open onClose={onClose} label="Ajouter un bien en gestion" placement="center" panelClassName="w-full max-w-md" backdropOpacity={0.4}>
+      <div
+        className="bg-white rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-divider sticky top-0 bg-white">
+          <h2 className="font-bold text-text-dark">Ajouter un bien en gestion</h2>
+          <button onClick={onClose} aria-label="Fermer" className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-g text-text-grey">✕</button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="bg-primary/10 border border-primary/30 rounded-xl px-4 py-3">
+            <p className="text-primary text-xs leading-relaxed">
+              Ce bien sera visible uniquement dans votre espace, sans annonce publique (il n’a donc pas besoin de photos). Partagez le code d'invitation généré à votre locataire pour lier son compte et activer le suivi des loyers.
+            </p>
+          </div>
+
+          {success && (
+            <div className="bg-success/10 border border-success/30 rounded-xl px-4 py-2.5">
+              <p className="text-success text-sm font-semibold">Bien ajouté avec succès</p>
+            </div>
+          )}
+          <div role="alert" aria-live="assertive" aria-atomic="true">
+            {error && (
+              <div className="bg-danger/10 border border-danger/30 rounded-xl px-4 py-2.5">
+                <p className="text-danger text-sm">{error}</p>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p id="ajout-bien-type" className="text-xs font-semibold text-text-dark mb-1.5 block">Type de bien</p>
+            <SelecteurTypeBien valeur={typeBien} onChange={setTypeBien} formulaires={['classique']} />
+            {peutEtreMeuble && (
+              <div className="flex gap-2 mt-2">
+                <button type="button" onClick={() => setMeuble(false)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold border ${!meuble ? 'text-primary border-primary bg-primary/10' : 'text-text-grey border-divider'}`}>
+                  Vide
+                </button>
+                <button type="button" onClick={() => setMeuble(true)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold border ${meuble ? 'text-primary border-primary bg-primary/10' : 'text-text-grey border-divider'}`}>
+                  Meublé
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="ajouter-bien-gestion-modal-144" className="text-xs font-semibold text-text-dark mb-1.5 block">Loyer mensuel (FCFA)</label>
+            <NumberInput milliers id="ajouter-bien-gestion-modal-144" value={loyer} onChange={e => setLoyer(e.target.value)} placeholder="Ex : 50 000"
+              className="w-full bg-white border border-divider rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary" />
+          </div>
+
+          <p className="text-xs font-bold text-text-grey uppercase tracking-wide pt-1">Localisation</p>
+          <div>
+            <label htmlFor="ajouter-bien-gestion-modal-151" className="text-xs font-semibold text-text-dark mb-1.5 block">Quartier</label>
+            <QuartierPicker id="ajouter-bien-gestion-modal-151"
+              value={quartier}
+              onChange={setQuartier}
+              onSelect={q => setVille(q.ville)}
+              onBlur={() => {
+                if (!quartier.trim()) return
+                const trouve = trouverQuartierExact(quartier)
+                if (trouve) setVille(trouve.ville)
+              }}
+            />
+          </div>
+          <div>
+            <label htmlFor="ajouter-bien-gestion-modal-164" className="text-xs font-semibold text-text-dark mb-1.5 block">Ville</label>
+            <input id="ajouter-bien-gestion-modal-164" value={ville} onChange={e => setVille(e.target.value)} placeholder="Ex : Cotonou"
+              className="w-full bg-white border border-divider rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary" />
+          </div>
+          <div>
+            <label htmlFor="ajouter-bien-gestion-modal-169" className="text-xs font-semibold text-text-dark mb-1.5 block">Adresse précise (optionnel)</label>
+            <input id="ajouter-bien-gestion-modal-169" value={adresse} onChange={e => setAdresse(e.target.value)} placeholder="Derrière le CEG, 200m du goudron…"
+              className="w-full bg-white border border-divider rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary" />
+          </div>
+
+          <div>
+            <label htmlFor="ajouter-bien-gestion-modal-175" className="text-xs font-semibold text-text-dark mb-1.5 block">Description (optionnel)</label>
+            <textarea id="ajouter-bien-gestion-modal-175" value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="Détails supplémentaires…"
+              className="w-full bg-white border border-divider rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary resize-none" />
+          </div>
+        </div>
+
+        <div className="p-5 pt-0">
+          <button onClick={submit} disabled={saving || success}
+            className="w-full py-3.5 rounded-xl font-bold text-white disabled:opacity-60"
+            style={{ background: 'linear-gradient(135deg,var(--c-brand),var(--c-violet))' }}>
+            {success ? 'Ajouté ✓' : saving ? 'Ajout en cours…' : 'Ajouter le bien'}
+          </button>
+        </div>
+      </div>
+    </ModalSheet>
+  )
+}

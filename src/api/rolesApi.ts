@@ -1,12 +1,20 @@
 import axios from 'axios'
-
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1'
-const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('rg_token') || ''}` } })
+import { refreshAccessToken } from './httpInterceptor'
+import { BASE, auth } from './apiBase'
+import type { User } from '../types/api'
 
 export const rolesApi = {
-  activer: (role: string, justification?: string) =>
-    axios.post(`${BASE}/roles/${role}/activate`, { justification }, auth()).then(r => r.data),
+  activer: async (role: string) => {
+    const data = await axios.post<User>(`${BASE}/users/me/roles/activate`, { role }, auth()).then(r => r.data)
+    // Le token en cours embarque l'ancien roles_actifs — sans ce refresh,
+    // les routes protégées par le rôle qu'on vient d'activer répondent 403.
+    await refreshAccessToken()
+    return data
+  },
 
-  desactiver: (role: string) =>
-    axios.post(`${BASE}/roles/${role}/deactivate`, {}, auth()).then(r => r.data),
+  desactiver: async (role: string) => {
+    const data = await axios.delete<User>(`${BASE}/users/me/roles/${role}`, auth()).then(r => r.data)
+    await refreshAccessToken()
+    return data
+  },
 }

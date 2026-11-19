@@ -1,13 +1,16 @@
 import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import img1 from '../../assets/onboarding-1.jpg'
-import img2 from '../../assets/onboarding-2.jpg'
-import img3 from '../../assets/onboarding-3.jpg'
-import logoUrl from '../../assets/REFUGE-LOGO.png'
+import { useNavigate, Navigate } from 'react-router-dom'
+import { usePageTitle } from '../../utils/usePageTitle'
+import img1 from '../../assets/onboarding-1.webp'
+import img2 from '../../assets/onboarding-2.webp'
+import img3 from '../../assets/onboarding-3.webp'
+import logoUrl from '../../assets/REFUGE-ICON.webp'
+import { withAlpha } from '../../utils/color'
+import { INSCRIPTION_PROPRIETAIRES_UNIQUEMENT as PROPRIO_SEUL } from '../../config/inscription'
 
 const SLIDES = [
   {
-    accent: '#4B6BFF',
+    accent: 'var(--c-brand)',
     image: img1,
     icon: (
       <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2}>
@@ -15,12 +18,12 @@ const SLIDES = [
       </svg>
     ),
     title: 'Trouvez votre\nlogement idéal',
-    subtitle: 'Recherchez parmi des centaines de logements vérifiés à Cotonou et Abomey-Calavi.',
+    subtitle: 'Recherchez des logements à Cotonou et Abomey-Calavi et réservez vos visites en quelques clics.',
     features: ['Recherche avancée', 'Filtres intelligents', 'Résultats en temps réel'],
     btnLabel: 'Commencer',
   },
   {
-    accent: '#FF6B35',
+    accent: 'var(--c-accent)',
     image: img2,
     icon: (
       <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2}>
@@ -28,12 +31,12 @@ const SLIDES = [
       </svg>
     ),
     title: 'Planifiez vos\nvisites facilement',
-    subtitle: "Réservez un créneau et payez en ligne. L'agent vous contacte directement.",
+    subtitle: "Réservez un créneau et payez en ligne. Le propriétaire vous contacte directement.",
     features: ['Réservation en ligne', 'Confirmation rapide', 'Rappels automatiques'],
     btnLabel: 'Continuer',
   },
   {
-    accent: '#22C55E',
+    accent: 'var(--c-success)',
     image: img3,
     icon: (
       <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2}>
@@ -41,13 +44,20 @@ const SLIDES = [
       </svg>
     ),
     title: 'Sécurisé et\ntransparent',
-    subtitle: 'Paiements via Mobile Money, reçus automatiques et logements vérifiés.',
-    features: ['Mobile Money', 'Reçus automatiques', 'Biens vérifiés'],
+    subtitle: 'Paiements via Mobile Money, reçus automatiques et annonces modérées avant publication.',
+    features: ['Mobile Money', 'Reçus automatiques', 'Annonces modérées'],
     btnLabel: "C'est parti",
   },
 ]
 
+/** Inscription propriétaire uniquement : les diaporamas sont destinés aux chercheurs de logement, on les saute. */
 export default function OnboardingPage() {
+  if (PROPRIO_SEUL) return <Navigate to="/onboarding/destination" state={{ objectif: 'proprietaire' }} replace />
+  return <Diaporama />
+}
+
+function Diaporama() {
+  usePageTitle('Bienvenue sur REFUGE')
   const navigate = useNavigate()
   const [current, setCurrent] = useState(0)
   const touchStartX = useRef(0)
@@ -87,6 +97,7 @@ export default function OnboardingPage() {
       {SLIDES.map((s, i) => (
         <img
           key={i}
+          loading="lazy"
           src={s.image}
           alt=""
           className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
@@ -105,7 +116,7 @@ export default function OnboardingPage() {
         {/* Top bar */}
         <div className="flex items-center justify-between px-6 md:px-16 pt-14 pb-4">
           {current > 0 ? (
-            <button
+            <button aria-label="Étape précédente"
               onClick={() => goTo(current - 1)}
               className="w-10 h-10 flex items-center justify-center rounded-[12px]"
               style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}
@@ -116,8 +127,11 @@ export default function OnboardingPage() {
             </button>
           ) : (
             <div className="flex items-center gap-2.5">
-              <img src={logoUrl} alt="REFUGE" style={{ width: 42, height: 42, objectFit: 'contain' }} />
-              <span className="font-bold text-lg tracking-tight" style={{ color: '#00AEEF' }}>REFUGE</span>
+              <div className="w-[52px] h-[52px] flex items-center justify-center rounded-[15px] flex-shrink-0"
+                style={{ background: 'rgba(255,255,255,0.94)', boxShadow: '0 4px 16px rgba(0,0,0,0.18)' }}>
+                <img loading="lazy" src={logoUrl} alt="REFUGE" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+              </div>
+              <span className="font-bold text-lg tracking-tight" style={{ color: 'var(--c-cyan)' }}>REFUGE</span>
             </div>
           )}
 
@@ -137,14 +151,17 @@ export default function OnboardingPage() {
 
           {/* Icone + dots */}
           <div className="flex items-center gap-3 mb-5 anim-fade-up">
-            <div className="w-11 h-11 rounded-[13px] flex items-center justify-center flex-shrink-0 anim-bounce-in" style={{ background: slide.accent, boxShadow: `0 4px 12px ${slide.accent}66` }}>
+            <div className="w-11 h-11 rounded-[13px] flex items-center justify-center flex-shrink-0 anim-bounce-in" style={{ background: slide.accent, boxShadow: `0 4px 12px ${withAlpha(slide.accent, '66')}` }}>
               {slide.icon}
             </div>
             <div className="flex items-center gap-1.5">
               {SLIDES.map((_, i) => (
-                <div
+                <button
                   key={i}
+                  type="button"
                   onClick={() => goTo(i)}
+                  aria-label={`Écran ${i + 1} sur ${SLIDES.length}`}
+                  aria-current={i === current ? 'step' : undefined}
                   className="h-2 rounded-full cursor-pointer transition-all duration-300"
                   style={{ width: i === current ? 28 : 8, background: i === current ? slide.accent : 'rgba(255,255,255,0.3)' }}
                 />
@@ -168,8 +185,8 @@ export default function OnboardingPage() {
                 key={i}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium text-white/90 anim-scale-in"
                 style={{
-                  background: `${slide.accent}33`,
-                  border: `1px solid ${slide.accent}55`,
+                  background: `${withAlpha(slide.accent, '33')}`,
+                  border: `1px solid ${withAlpha(slide.accent, '55')}`,
                   animationDelay: `${300 + i * 60}ms`,
                 }}
               >
@@ -184,7 +201,7 @@ export default function OnboardingPage() {
           <button
             onClick={next}
             className="w-full md:w-auto md:px-12 h-[54px] rounded-[16px] flex items-center justify-center gap-3 font-bold text-white text-base hover:opacity-90 transition-opacity anim-scale-in d-500 btn-press"
-            style={{ background: slide.accent, boxShadow: `0 4px 16px ${slide.accent}55` }}
+            style={{ background: slide.accent, boxShadow: `0 4px 16px ${withAlpha(slide.accent, '55')}` }}
           >
             <span>{slide.btnLabel}</span>
             <div className="w-7 h-7 rounded-[8px] flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.2)' }}>

@@ -1,0 +1,193 @@
+// Labels lisibles pour les aménités d'un bien, miroir de la logique mobile
+// (immo_confort/lib/models/bien.dart → classe Amenites).
+
+import type { Amenites } from '../types/amenites'
+
+function electriciteLabel(a: Amenites): string | null {
+  switch (a.electricite ?? a.compteur_elec) {
+    case 'sbee':
+    case 'personnel':
+      return 'SBEE'
+    case 'decompteur':
+    case 'decompte':
+      return a.prix_kwh != null ? `Décompteur — ${Number(a.prix_kwh).toFixed(0)} FCFA/kWh` : 'Décompteur'
+    case 'non':
+      return 'Pas de courant'
+    default:
+      return null
+  }
+}
+
+function eauLabel(a: Amenites): string | null {
+  switch (a.eau ?? a.compteur_eau) {
+    case 'soneb':
+      if (a.soneb_gestion === 'prix_m3' && a.prix_m3 != null) {
+        return `SONEB — ${Number(a.prix_m3).toFixed(0)} FCFA/m³`
+      }
+      if (a.soneb_gestion === 'voisins') return 'SONEB (partagée avec voisins)'
+      return 'SONEB'
+    case 'forage':
+      if (a.forage_payant === true && a.prix_forage != null) {
+        return `Forage payant — ${Number(a.prix_forage).toFixed(0)} FCFA`
+      }
+      return a.forage_payant === true ? 'Forage payant' : 'Forage gratuit'
+    case 'non':
+      return a.puits === true ? 'Puits disponible' : "Pas d'eau"
+    default:
+      return null
+  }
+}
+
+function cuisineLabel(a: Amenites): string | null {
+  switch (a.type_cuisine) {
+    case 'americaine': return 'Cuisine ouverte (américaine)'
+    case 'couloir_balcon': return 'Cuisine couloir / balcon'
+    case 'fermee': return 'Cuisine fermée'
+    case 'separee_douche': return 'Cuisine séparée de la douche'
+    case 'autre': return a.cuisine_autre_detail || 'Autre cuisine'
+    default: return null
+  }
+}
+
+function courLabel(a: Amenites): string | null {
+  switch (a.type_cour) {
+    case 'unique_entree': return 'Cour privée'
+    case 'entree_personnelle': return 'Entrée personnelle'
+    case 'commune':
+    case 'cour_commune':
+      return a.nb_voisins != null
+        ? `Cour commune — ${a.nb_voisins} voisin${a.nb_voisins > 1 ? 's' : ''}`
+        : 'Cour commune'
+    default: return null
+  }
+}
+
+function finitionLabel(a: Amenites): string | null {
+  switch (a.finition) {
+    case 'ordinaire': return 'Finition ordinaire'
+    case 'semi_staffe': return 'Semi-staffé'
+    case 'staffe_carele': return 'Staffé / Carrelé'
+    case 'standard': return 'Finition standard'
+    case 'moderne': return 'Finition moderne'
+    case 'haut_standing': return 'Haut standing'
+    case 'vip': return 'VIP / Luxe'
+    default: return null
+  }
+}
+
+
+const DOCUMENT_TERRAIN_LABELS: Record<string, string> = {
+  permis_construire: 'Permis de construire',
+  titre_foncier: 'Titre foncier',
+  attestation_recasement: 'Attestation de recasement',
+  convention_vente: 'Convention de vente',
+  lettre_attribution: "Lettre d'attribution",
+  plan: 'Plan cadastral',
+  autre: 'Autre document',
+}
+
+const POSITION_TERRAIN_LABELS: Record<string, string> = {
+  bord_goudron: 'Au bord du goudron',
+  ruelle: 'Dans la ruelle',
+  bordure_route: 'Bordure de route',
+  quartier: 'Dans le quartier',
+  retrait: 'En retrait',
+  autre: 'Autre',
+}
+
+export type InfoRow = { label: string; value: string }
+
+/** Section "Informations logement" */
+export function infosLogementRows(a: Amenites): InfoRow[] {
+  const rows: InfoRow[] = []
+
+  const elec = electriciteLabel(a)
+  if (elec) rows.push({ label: 'Électricité', value: elec })
+
+  const eau = eauLabel(a)
+  if (eau) rows.push({ label: 'Eau', value: eau })
+
+  const cuisine = cuisineLabel(a)
+  if (cuisine) rows.push({ label: 'Cuisine', value: cuisine })
+
+  const cour = courLabel(a)
+  if (cour) rows.push({ label: 'Cour / Accès', value: cour })
+
+  if (a.acces_vehicule != null) {
+    const val = a.acces_vehicule
+      ? (a.nb_vehicules != null ? `Oui — ${a.nb_vehicules} véhicule${a.nb_vehicules > 1 ? 's' : ''}` : 'Oui')
+      : 'Non'
+    rows.push({ label: 'Accès véhicule', value: val })
+  }
+
+  if (a.chambre_couloir != null) {
+    rows.push({ label: 'Maison à couloir', value: a.chambre_couloir ? 'Oui' : 'Non' })
+  }
+
+  const standingLabels: Record<string, string> = {
+    ordinaire: 'Ordinaire', sanitaire: 'Sanitaire', semi_sanitaire: 'Semi sanitaire',
+    sanitaire_semi_staffe: 'Sanitaire semi-staffé', sanitaire_staffe: 'Sanitaire staffé',
+    haut_standing_vip: 'Haut standing / VIP',
+  }
+  const standing = a.standing === 'autre'
+    ? (a.standing_autre || 'Autre')
+    : (a.standing ? standingLabels[a.standing] : null)
+  if (standing) rows.push({ label: 'Standing', value: standing })
+
+  if (!standing && a.sanitaire != null) {
+    const interne = a.sanitaire === true || a.sanitaire === 'interieur'
+    rows.push({ label: 'Sanitaires', value: interne ? 'Intérieur' : 'Extérieur' })
+  }
+
+  const finition = standing ? null : finitionLabel(a)
+  if (finition) rows.push({ label: 'Finition', value: finition })
+
+  if (a.echeance_mois != null && a.echeance_mois > 1) {
+    rows.push({ label: 'Loyer', value: `Tous les ${a.echeance_mois} du mois` })
+  }
+
+  return rows
+}
+
+/** Section "Informations terrain" */
+export function infosTerrainRows(a: Amenites): InfoRow[] {
+  const rows: InfoRow[] = []
+
+  if (a.documents?.length) {
+    const documents = a.documents.map(document => {
+      if (document === 'autre' && a.document_autre_detail?.trim()) {
+        return `Autre : ${a.document_autre_detail.trim()}`
+      }
+      return DOCUMENT_TERRAIN_LABELS[document] ?? document
+    })
+    rows.push({ label: 'Documents disponibles', value: documents.join(', ') })
+  } else if (a.document != null) {
+    const document = a.document === 'autre' && a.document_autre_detail?.trim()
+      ? `Autre : ${a.document_autre_detail.trim()}`
+      : DOCUMENT_TERRAIN_LABELS[a.document] ?? a.document
+    rows.push({ label: 'Document disponible', value: document })
+  }
+  if (a.loti != null) {
+    const val = typeof a.loti === 'boolean'
+      ? (a.loti ? 'Oui' : 'Non')
+      : a.loti === 'lotie' ? 'Oui' : a.loti === 'non_lotie' ? 'Non' : 'Autre'
+    rows.push({ label: 'Terrain loti', value: val })
+  }
+  if (a.titre_foncier != null) {
+    rows.push({ label: 'Titre foncier', value: a.titre_foncier ? 'Oui' : 'Non' })
+  }
+  if (a.permission_construire != null) {
+    rows.push({ label: 'Permission de construire', value: a.permission_construire ? 'Obtenue' : 'Non obtenue' })
+  }
+  if (a.angle_rue != null) {
+    rows.push({ label: 'Angle de rue', value: a.angle_rue ? 'Oui' : 'Non' })
+  }
+  if (a.position != null) {
+    rows.push({ label: 'Position', value: POSITION_TERRAIN_LABELS[a.position] ?? a.position })
+  }
+  if (a.description_construction) {
+    rows.push({ label: 'Construction existante', value: a.description_construction })
+  }
+
+  return rows
+}

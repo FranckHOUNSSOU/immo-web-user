@@ -1,198 +1,321 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import logoUrl from '../assets/REFUGE-LOGO.png'
+import { useAuth } from '../context/useAuth'
+import { INSCRIPTION_PROPRIETAIRES_UNIQUEMENT as PROPRIO_SEUL } from '../config/inscription'
+import { useNotifications } from '../context/useNotifications'
+import { useScrolled } from '../context/useScrolled'
+import { useTheme } from '../context/useTheme'
+import logoUrl from '../assets/REFUGE-LOGO.webp'
 
+// Liens texte : 4 entrées sur tablette, 5 dès 1024 px (« Mes visites », aussi dans le menu
+// de l'avatar). Alertes et Messages passent en boutons icône (avec badge) à droite.
 const NAV_ITEMS = [
-  { path: '/',              label: 'Accueil',  authRequired: false },
-  { path: '/favoris',       label: 'Favoris',  authRequired: true  },
-  { path: '/notifications', label: 'Alertes',  authRequired: true  },
-  { path: '/conversations', label: 'Messages', authRequired: true  },
-  { path: '/profil',        label: 'Profil',   authRequired: true  },
+  { path: '/',             label: 'Accueil',         authRequired: false },
+  { path: '/search',       label: 'Rechercher',      authRequired: false },
+  { path: '/favoris',      label: 'Favoris',         authRequired: true  },
+  { path: '/mes-visites',  label: 'Mes visites',     authRequired: true, largeOnly: true },
+  { path: '/nouveau-bien', label: 'Publier un bien', authRequired: true  },
 ]
 
+const ICON_ITEMS = [
+  { path: '/notifications', label: 'Alertes'  },
+  { path: '/conversations', label: 'Messages' },
+] as const
+
+const ROLE_ROUTES: Record<string, { label: string; path: string }> = {
+  proprietaire: { label: 'Espace Propriétaire', path: '/proprietaire' },
+  locataire:    { label: 'Espace Locataire',     path: '/locataire'    },
+  prospect:     { label: 'Espace Client',        path: '/'             },
+}
+
+// Icônes inline légères
+const BellIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 21a1.94 1.94 0 003.4 0"/>
+  </svg>
+)
+const ChatIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 12a8 8 0 01-11.6 7.1L4 20l1-4.6A8 8 0 1121 12z"/>
+  </svg>
+)
+const LogOutIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"/>
+  </svg>
+)
+
 export default function TopNav() {
-  const { isLoggedIn, user, logout } = useAuth()
+  const { isLoggedIn, user, logout, rolesActifs, activeRole, setActiveRole } = useAuth()
+  const { unreadAlertes, unreadMessages } = useNotifications()
+  const { scrolled } = useScrolled()
+  const { theme } = useTheme()
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
   }, [])
 
-  const isActive = (path: string) => {
-    if (path === '/') return location.pathname === '/'
-    return location.pathname.startsWith(path)
-  }
+  const isActive = (path: string) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
 
-  const handleNav = (item: typeof NAV_ITEMS[0]) => {
-    if (item.authRequired && !isLoggedIn) navigate('/login')
-    else navigate(item.path)
+  const handleNav = (item: { path: string; authRequired: boolean }) => {
+    if (item.authRequired && !isLoggedIn) {
+      sessionStorage.setItem('post_login_redirect', item.path)
+      navigate('/login')
+    } else navigate(item.path)
     setMenuOpen(false)
   }
 
   const initials = user ? `${user.prenom?.[0] || ''}${user.nom?.[0] || ''}`.toUpperCase() : ''
 
   const handleLogout = () => {
-    logout()
     setMenuOpen(false)
     navigate('/')
+    requestAnimationFrame(() => requestAnimationFrame(logout))
   }
 
+  // Rôles avec dashboard propre (filtre ceux sans route connue)
+  const espacesRoles = rolesActifs.filter(r => ROLE_ROUTES[r])
+
+  const isDark = theme === 'dark'
+
+  const menuItemStyle: React.CSSProperties = { color: isDark ? 'rgba(255,255,255,0.85)' : '#1D1D1F' }
+
   return (
-    <header
-      className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 items-center anim-slide-down"
-      style={{
-        background: 'rgba(245,245,247,0.78)',
-        backdropFilter: 'blur(48px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(48px) saturate(180%)',
-        borderBottom: '1px solid rgba(0,0,0,0.07)',
-        boxShadow: 'inset 0 -0.5px 0 rgba(0,0,0,0.04), 0 2px 20px rgba(0,0,0,0.06)',
-      }}
-    >
-      <div className="w-full px-6 md:px-16 grid grid-cols-[auto_1fr_auto] items-center gap-6">
+    <header className={`hidden md:block fixed top-0 left-0 right-0 z-[60] pointer-events-none transition-[padding] duration-300${scrolled ? ' px-3' : ''}`}>
+      <nav
+        aria-label="Navigation principale"
+        className="mx-auto pointer-events-auto flex items-center transition-all duration-300"
+        style={{
+          background: scrolled
+            ? (isDark ? 'rgba(15,15,20,0.90)' : 'rgba(245,245,247,0.88)')
+            : (isDark ? 'rgba(15,15,20,0.80)' : 'rgba(245,245,247,0.78)'),
+          backdropFilter: 'blur(48px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(48px) saturate(180%)',
+          borderTopWidth:    scrolled ? '1px' : '0px',
+          borderLeftWidth:   scrolled ? '1px' : '0px',
+          borderRightWidth:  scrolled ? '1px' : '0px',
+          borderBottomWidth: '1px',
+          borderStyle: 'solid',
+          borderColor: scrolled
+            ? (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.09)')
+            : (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'),
+          borderRadius: scrolled ? '1rem' : '0px',
+          maxWidth: scrolled ? '72rem' : '100%',
+          boxShadow: scrolled ? '0 8px 32px rgba(0,0,0,0.12)' : 'inset 0 -0.5px 0 rgba(0,0,0,0.04), 0 2px 20px rgba(0,0,0,0.06)',
+          height: 72,
+          paddingLeft:  scrolled ? '1.25rem' : undefined,
+          paddingRight: scrolled ? '1.25rem' : undefined,
+        }}
+      >
+        <div className="w-full px-4 md:px-6 lg:px-8 xl:px-16 grid grid-cols-[auto_1fr_auto] items-center gap-3 xl:gap-6">
 
-        {/* Logo */}
-        <button onClick={() => navigate('/')} className="flex items-center gap-2.5 flex-shrink-0">
-          <img src={logoUrl} alt="REFUGE" style={{ width: 46, height: 46, objectFit: 'contain' }} />
-          <span className="font-bold text-xl tracking-tight" style={{ color: '#00AEEF' }}>REFUGE</span>
-        </button>
+          {/* Logo */}
+          <button onClick={() => navigate('/')} className="flex items-center gap-2.5 lg:gap-3 flex-shrink-0">
+            <img src={logoUrl} alt="REFUGE" style={{ width: 60, height: 60, objectFit: 'contain', filter: isDark ? 'brightness(1.15) drop-shadow(0 0 6px rgba(0,174,239,0.35))' : 'none' }} className="xl:w-[68px] xl:h-[68px]" />
+            {/* #0077B6 en clair : var(--c-cyan) sur fond clair ne passe pas le contraste AA (2,6:1) */}
+            <span className="font-extrabold text-xl xl:text-2xl tracking-tight hidden sm:inline" style={{ color: isDark ? 'var(--c-cyan)' : '#0077B6' }}>REFUGE</span>
+          </button>
 
-        {/* Nav centré */}
-        <nav className="flex items-center justify-center gap-1">
-          {NAV_ITEMS.map(item => {
-            const active = isActive(item.path)
-            return (
-              <button
-                key={item.path}
-                onClick={() => handleNav(item)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${!active ? 'nav-link' : ''}`}
-                style={{
-                  color:       active ? '#4B6BFF' : 'rgba(0,0,0,0.55)',
-                  background:  active ? 'rgba(75,107,255,0.10)' : 'transparent',
-                  border:      active ? '1px solid rgba(75,107,255,0.22)' : '1px solid transparent',
-                  boxShadow:   active ? 'inset 0 1px 0 rgba(255,255,255,0.8)' : 'none',
-                  backdropFilter: active ? 'blur(20px)' : 'none',
-                }}
-              >
-                {item.label}
-              </button>
-            )
-          })}
-        </nav>
-
-        {/* Auth */}
-        {!isLoggedIn ? (
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <button
-              onClick={() => navigate('/login')}
-              className="px-4 py-2 text-sm font-semibold rounded-xl transition-all"
-              style={{
-                color: '#1D1D1F',
-                background: 'rgba(255,255,255,0.70)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(0,0,0,0.10)',
-                boxShadow: 'inset 0 1.5px 0 rgba(255,255,255,0.95), 0 2px 8px rgba(0,0,0,0.06)',
-              }}
-              onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.90)'}
-              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.70)'}
-            >
-              Se connecter
-            </button>
-            <button
-              onClick={() => navigate('/register')}
-              className="px-4 py-2 text-sm font-semibold rounded-xl text-white transition-all btn-glow"
-              style={{ background: 'linear-gradient(135deg,#4B6BFF,#7B4BFF)', boxShadow: '0 4px 16px rgba(75,107,255,0.35)' }}
-            >
-              S'inscrire
-            </button>
-          </div>
-        ) : (
-          <div className="relative flex-shrink-0" ref={menuRef}>
-            <button
-              onClick={() => setMenuOpen(o => !o)}
-              className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-xl transition-all"
-              style={{
-                background: 'rgba(255,255,255,0.75)',
-                backdropFilter: 'blur(32px) saturate(160%)',
-                WebkitBackdropFilter: 'blur(32px) saturate(160%)',
-                border: '1px solid rgba(255,255,255,0.95)',
-                boxShadow: 'inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -0.5px 0 rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.08)',
-              }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.92)'
-                ;(e.currentTarget as HTMLButtonElement).style.boxShadow = 'inset 0 2px 0 rgba(255,255,255,1), 0 6px 20px rgba(0,0,0,0.10)'
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.75)'
-                ;(e.currentTarget as HTMLButtonElement).style.boxShadow = 'inset 0 1.5px 0 rgba(255,255,255,1), inset 0 -0.5px 0 rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.08)'
-              }}
-            >
-              {user?.photo_profil ? (
-                <img src={user.photo_profil} alt="" className="w-8 h-8 rounded-full object-cover" />
-              ) : (
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: 'linear-gradient(135deg,#4B6BFF,#7B4BFF)' }}>
-                  {initials}
-                </div>
-              )}
-              <div className="text-left">
-                <p className="text-sm font-semibold leading-none" style={{ color: '#1D1D1F' }}>{user?.prenom} {user?.nom}</p>
-                <p className="text-[11px] mt-0.5 capitalize" style={{ color: 'rgba(0,0,0,0.4)' }}>{user?.role}</p>
-              </div>
-              <svg className="w-4 h-4 ml-1" style={{ color: 'rgba(0,0,0,0.35)' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {menuOpen && (
-              <div
-                className="absolute right-0 top-full mt-2.5 w-56 rounded-2xl overflow-hidden z-50 anim-scale-in"
-                style={{
-                  background: 'rgba(255,255,255,0.82)',
-                  backdropFilter: 'blur(56px) saturate(180%)',
-                  WebkitBackdropFilter: 'blur(56px) saturate(180%)',
-                  border: '1px solid rgba(255,255,255,0.95)',
-                  boxShadow: 'inset 0 1.5px 0 rgba(255,255,255,1), 0 20px 60px rgba(0,0,0,0.14)',
-                }}
-              >
-                {[
-                  { label: 'Mon profil',    path: '/profil' },
-                  { label: 'Mes visites',   path: '/mes-visites' },
-                  { label: 'Messages',      path: '/conversations' },
-                  { label: 'Favoris',       path: '/favoris' },
-                  { label: 'Notifications', path: '/notifications' },
-                ].map(item => (
-                  <button key={item.path} onClick={() => { navigate(item.path); setMenuOpen(false) }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-left transition-all"
-                    style={{ color: '#1D1D1F' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.04)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-                <div style={{ borderTop: '1px solid rgba(0,0,0,0.07)' }} />
-                <button onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-left transition-all"
-                  style={{ color: '#FF3B30' }}
-                  onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,59,48,0.06)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
+          {/* Nav centré */}
+          <nav aria-label="Liens rapides" className="min-w-0 flex items-center justify-center gap-0.5 xl:gap-1">
+            {NAV_ITEMS.map(item => {
+              const active = isActive(item.path)
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => handleNav(item)}
+                  className={`relative ${'largeOnly' in item && item.largeOnly ? 'hidden lg:flex' : 'flex'} items-center gap-1.5 lg:gap-2 px-2.5 lg:px-4 py-2 rounded-xl text-[13px] lg:text-sm font-medium transition-all whitespace-nowrap ${!active ? 'nav-link' : ''}`}
+                  style={{
+                    color:      active ? 'var(--c-brand)' : (isDark ? 'rgba(255,255,255,0.60)' : 'rgba(0,0,0,0.55)'),
+                    background: active ? 'rgba(75,107,255,0.12)' : 'transparent',
+                    border:     active ? '1px solid rgba(75,107,255,0.25)' : '1px solid transparent',
+                    boxShadow:  active ? 'inset 0 1px 0 rgba(255,255,255,0.6)' : 'none',
+                  }}
                 >
-                  Se déconnecter
+                  {item.label}
                 </button>
+              )
+            })}
+          </nav>
+
+          {/* Droite : Alertes, Messages, auth. Le thème se règle dans Profil → Apparence. */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+
+            {isLoggedIn && ICON_ITEMS.map(item => {
+              const active = isActive(item.path)
+              const badge = item.path === '/notifications' ? unreadAlertes : unreadMessages
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  aria-label={item.label + (badge > 0 ? `, ${badge} non lu${badge > 1 ? 's' : ''}` : '')}
+                  aria-current={active ? 'page' : undefined}
+                  title={item.label}
+                  className="relative w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all"
+                  style={{
+                    color: active ? 'var(--c-brand)' : (isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.60)'),
+                    background: active ? 'rgba(75,107,255,0.12)' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.75)'),
+                    border: '1px solid ' + (active ? 'rgba(75,107,255,0.25)' : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)')),
+                  }}
+                >
+                  {item.path === '/notifications' ? <BellIcon /> : <ChatIcon />}
+                  {badge > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-micro font-bold text-white" style={{ background: 'var(--c-red-ios)', border: '2px solid ' + (isDark ? '#0F0F14' : '#F5F5F7') }}>
+                      {badge > 9 ? '9+' : badge}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+
+            {/* Auth */}
+            {!isLoggedIn ? (
+              <div className="flex items-center gap-2 lg:gap-3">
+                <button
+                  onClick={() => navigate('/login')}
+                  className="px-3 lg:px-4 py-2 text-[13px] lg:text-sm font-semibold rounded-xl transition-all whitespace-nowrap"
+                  style={{
+                    color: isDark ? 'rgba(255,255,255,0.85)' : '#1D1D1F',
+                    background: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.70)',
+                    backdropFilter: 'blur(20px)',
+                    border: '1px solid ' + (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)'),
+                    boxShadow: 'inset 0 1.5px 0 rgba(255,255,255,0.15), 0 2px 8px rgba(0,0,0,0.06)',
+                  }}
+                >
+                  Se connecter
+                </button>
+                <button
+                  onClick={() => navigate('/register')}
+                  className="px-3 lg:px-4 py-2 text-[13px] lg:text-sm font-semibold rounded-xl text-white transition-all btn-glow whitespace-nowrap"
+                  style={{ background: 'linear-gradient(135deg,var(--c-brand),var(--c-violet))', boxShadow: '0 4px 16px rgba(75,107,255,0.35)' }}
+                >
+                  {PROPRIO_SEUL ? 'Je suis propriétaire' : "S'inscrire"}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={() => setMenuOpen(o => !o)}
+                  aria-expanded={menuOpen}
+                  aria-haspopup="menu"
+                  aria-label="Menu utilisateur"
+                  className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-xl transition-all"
+                  style={{
+                    background: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.75)',
+                    backdropFilter: 'blur(32px) saturate(160%)',
+                    WebkitBackdropFilter: 'blur(32px) saturate(160%)',
+                    border: '1px solid ' + (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.95)'),
+                    boxShadow: isDark
+                      ? '0 4px 16px rgba(0,0,0,0.25)'
+                      : 'inset 0 1.5px 0 rgba(255,255,255,1), 0 4px 16px rgba(0,0,0,0.08)',
+                  }}
+                >
+                  {user?.photo_profil ? (
+                    <img src={user.photo_profil} alt="" className="w-8 h-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: 'linear-gradient(135deg,var(--c-brand),var(--c-violet))' }}>
+                      {initials}
+                    </div>
+                  )}
+                  <div className="text-left hidden lg:block">
+                    <p className="text-sm font-semibold leading-none" style={menuItemStyle}>{user?.prenom} {user?.nom}</p>
+                    <p className="text-caption mt-0.5 capitalize" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)' }}>{user?.role}</p>
+                  </div>
+                  <svg className="w-4 h-4 ml-1" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {menuOpen && (
+                  <div
+                    className="absolute right-0 top-full mt-2.5 w-60 rounded-2xl overflow-hidden z-50 anim-scale-in"
+                    style={{
+                      background: isDark ? 'rgba(20,20,28,0.92)' : 'rgba(255,255,255,0.82)',
+                      backdropFilter: 'blur(56px) saturate(180%)',
+                      WebkitBackdropFilter: 'blur(56px) saturate(180%)',
+                      border: '1px solid ' + (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.95)'),
+                      boxShadow: isDark ? '0 20px 60px rgba(0,0,0,0.45)' : 'inset 0 1.5px 0 rgba(255,255,255,1), 0 20px 60px rgba(0,0,0,0.14)',
+                    }}
+                  >
+                    <div className="py-1.5" style={{ borderBottom: '1px solid ' + (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') }}>
+                      {[{ path: '/profil', label: 'Mon profil' }, { path: '/mes-visites', label: 'Mes visites' }].map(l => (
+                        <button key={l.path} onClick={() => { navigate(l.path); setMenuOpen(false) }} role="menuitem"
+                          className="menu-item-hover w-full flex items-center px-4 py-2.5 text-sm font-medium text-left" style={menuItemStyle}>
+                          {l.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="px-4 pt-3 pb-1">
+                      <p className="text-micro font-bold uppercase tracking-widest" style={{ color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.35)' }}>
+                        Mes espaces
+                      </p>
+                    </div>
+                    {espacesRoles.length > 1 ? (
+                      /* Multi-rôles : liste des espaces avec bascule silencieuse. */
+                      espacesRoles.map(role => {
+                        const { label, path } = ROLE_ROUTES[role]
+                        const isCurrent = activeRole === role
+                        return (
+                          <button
+                            key={role}
+                            onClick={() => { setActiveRole(role); navigate(path); setMenuOpen(false) }}
+                            role="menuitem"
+                            className="menu-item-hover w-full flex items-center justify-between gap-3 px-4 py-2.5 text-sm font-medium text-left"
+                            style={{ color: isCurrent ? 'var(--c-brand)' : (isDark ? 'rgba(255,255,255,0.80)' : '#1D1D1F') }}
+                          >
+                            <span>{label}</span>
+                            {isCurrent && (
+                              <span className="text-micro font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(75,107,255,0.12)', color: 'var(--tx-blue)' }}>
+                                Actif
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })
+                    ) : (
+                      /* Rôle unique : le seul "espace" mène au profil. */
+                      <button
+                        onClick={() => { navigate('/profil'); setMenuOpen(false) }}
+                        role="menuitem"
+                        className="menu-item-hover w-full flex items-center justify-between gap-3 px-4 py-2.5 text-sm font-medium text-left"
+                        style={{ color: 'var(--tx-blue)' }}
+                      >
+                        <span>{ROLE_ROUTES[activeRole]?.label || 'Mon profil'}</span>
+                        <span className="text-micro font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(75,107,255,0.12)', color: 'var(--tx-blue)' }}>
+                          Actif
+                        </span>
+                      </button>
+                    )}
+                    <div className="py-1.5 mt-1.5" style={{ borderTop: '1px solid ' + (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') }}>
+                      <button onClick={handleLogout} role="menuitem"
+                        className="menu-item-hover w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-left" style={{ color: 'var(--c-red-ios)' }}>
+                        <LogOutIcon /> Déconnexion
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      </nav>
     </header>
   )
 }

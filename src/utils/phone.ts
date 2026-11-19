@@ -1,0 +1,35 @@
+import { estTelephoneBenin } from '../shared/saisie/telephone'
+
+const BENIN_PREFIX = '+229'
+
+/** Numéro béninois depuis le 30/11/2024 : 10 chiffres, préfixe 01 (ARCEP Bénin). */
+export const BENIN_PHONE_LENGTH = 10
+
+/** Exemple unique affiché dans tous les champs téléphone. */
+export const PHONE_PLACEHOLDER = '01 97 00 00 00'
+
+export const PHONE_FORMAT_HINT = 'Numéro invalide : saisissez 10 chiffres commençant par 01 (ex. 01 97 00 00 00).'
+
+/** Ramène la saisie à 10 chiffres (retire l'indicatif 229 éventuel). */
+export function localBeninDigits(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  return digits.length === 13 && digits.startsWith('229') ? digits.slice(3) : digits
+}
+
+/** Valide un mobile béninois : exactement 10 chiffres, préfixe 01 (règle commune, lot 15). */
+export const validateBeninPhone = (raw: string): boolean => estTelephoneBenin(raw)
+
+/**
+ * Numéro à envoyer à l'API : toujours `+<indicatif><numéro>`. Pour le Bénin, les
+ * saisies avec ou sans indicatif donnent le même format (+22901XXXXXXXX), sans doublon.
+ */
+export function toInternationalPhone(countryCode: string, raw: string): string {
+  if (countryCode === BENIN_PREFIX) return normaliseBeninPhone(raw)
+  return `${countryCode}${raw.replace(/\D/g, '')}`
+}
+
+/** Normalise une saisie au format international unique (+22901XXXXXXXX). */
+export function normaliseBeninPhone(raw: string, countryCode = BENIN_PREFIX): string {
+  return `${countryCode}${localBeninDigits(raw)}`
+}
+

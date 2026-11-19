@@ -1,11 +1,20 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import sideImg from '../../assets/onboarding-side.jpg'
-import logoUrl from '../../assets/REFUGE-LOGO.png'
+import { useNavigate, Navigate } from 'react-router-dom'
+import sideImg from '../../assets/onboarding-side.webp'
+import logoUrl from '../../assets/REFUGE-ICON.webp'
+import { usePageTitle } from '../../utils/usePageTitle'
+import { INSCRIPTION_PROPRIETAIRES_UNIQUEMENT as PROPRIO_SEUL } from '../../config/inscription'
 
+/** Inscription propriétaire uniquement : plus de choix, on passe directement à l'étape propriétaire. */
 export default function OnboardingProjetPage() {
+  if (PROPRIO_SEUL) return <Navigate to="/onboarding/destination" state={{ objectif: 'proprietaire' }} replace />
+  return <ChoixProjet />
+}
+
+function ChoixProjet() {
+  usePageTitle('Mon projet – Inscription')
   const navigate = useNavigate()
-  const [selected, setSelected] = useState<'acheter' | 'louer'>('louer')
+  const [selected, setSelected] = useState<'proprietaire' | 'louer'>('louer')
 
   const handleNext = () => {
     navigate('/onboarding/destination', { state: { objectif: selected }, replace: true })
@@ -15,7 +24,7 @@ export default function OnboardingProjetPage() {
     <div className="min-h-dvh relative overflow-hidden flex flex-col">
 
       {/* Image de fond */}
-      <img src={sideImg} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      <img loading="lazy" src={sideImg} alt="" className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 55%, rgba(0,0,0,0.25) 100%)' }} />
 
       <div className="relative z-10 flex flex-col min-h-dvh">
@@ -23,12 +32,15 @@ export default function OnboardingProjetPage() {
         {/* Top bar */}
         <div className="flex items-center justify-between px-6 md:px-16 pt-14 pb-4">
           <div className="flex items-center gap-2.5">
-            <img src={logoUrl} alt="REFUGE" style={{ width: 42, height: 42, objectFit: 'contain' }} />
-            <span className="font-bold text-lg tracking-tight" style={{ color: '#00AEEF' }}>REFUGE</span>
+            <div className="w-[52px] h-[52px] flex items-center justify-center rounded-[15px] flex-shrink-0"
+              style={{ background: 'rgba(255,255,255,0.94)', boxShadow: '0 4px 16px rgba(0,0,0,0.18)' }}>
+              <img loading="lazy" src={logoUrl} alt="REFUGE" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+            </div>
+            <span className="font-bold text-lg tracking-tight" style={{ color: 'var(--c-cyan)' }}>REFUGE</span>
           </div>
           {/* Progress */}
           <div className="flex gap-1.5">
-            <div className="w-8 h-1 rounded-full" style={{ background: '#4B6BFF' }} />
+            <div className="w-8 h-1 rounded-full" style={{ background: 'var(--c-brand)' }} />
             <div className="w-8 h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.25)' }} />
           </div>
         </div>
@@ -53,9 +65,9 @@ export default function OnboardingProjetPage() {
                 icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>,
               },
               {
-                value: 'acheter' as const,
-                label: 'Je veux acheter',
-                desc: 'Acquérir un bien immobilier',
+                value: 'proprietaire' as const,
+                label: 'J\'ai un bien',
+                desc: 'Le mettre en location ou en vente',
                 icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
               },
             ] as const).map(r => (
@@ -65,18 +77,18 @@ export default function OnboardingProjetPage() {
                 className="flex items-center gap-4 px-6 py-5 rounded-2xl text-left transition-all"
                 style={{
                   background: selected === r.value ? 'rgba(75,107,255,0.25)' : 'rgba(255,255,255,0.08)',
-                  border: selected === r.value ? '1.5px solid #4B6BFF' : '1px solid rgba(255,255,255,0.15)',
+                  border: selected === r.value ? '1.5px solid var(--c-brand)' : '1px solid rgba(255,255,255,0.15)',
                   backdropFilter: 'blur(12px)',
                   WebkitBackdropFilter: 'blur(12px)',
                 }}
               >
-                <span style={{ color: selected === r.value ? '#4B6BFF' : 'rgba(255,255,255,0.55)' }}>{r.icon}</span>
+                <span style={{ color: selected === r.value ? 'var(--c-brand)' : 'rgba(255,255,255,0.55)' }}>{r.icon}</span>
                 <div className="flex-1">
                   <p className="font-bold text-white">{r.label}</p>
                   <p className="text-white/50 text-sm mt-0.5">{r.desc}</p>
                 </div>
                 {selected === r.value && (
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#4B6BFF' }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--c-brand)' }}>
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
@@ -89,7 +101,7 @@ export default function OnboardingProjetPage() {
           <button
             onClick={handleNext}
             className="w-full md:w-auto md:px-12 h-14 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-            style={{ background: 'linear-gradient(135deg,#4B6BFF,#7B4BFF)', boxShadow: '0 4px 20px rgba(75,107,255,0.4)' }}
+            style={{ background: 'linear-gradient(135deg,var(--c-brand),var(--c-violet))', boxShadow: '0 4px 20px rgba(75,107,255,0.4)' }}
           >
             Suivant
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>

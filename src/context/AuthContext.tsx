@@ -1,89 +1,131 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
-
-type AuthUser = {
-  id: number
-  nom: string
-  prenom: string
-  email: string | null
-  telephone: string | null
-  role: string
-  roles_actifs?: string[]
-  role_principal?: string
-  photo_profil: string | null
-  score_credibilite?: number
-  nb_etoiles?: number
-  penalite_pourcentage?: number
-}
-
-type AuthCtx = {
-  user: AuthUser | null
-  token: string | null
-  isLoggedIn: boolean
-  login: (data: any) => void
-  logout: () => void
-  updateUser: (u: Partial<AuthUser>) => void
-  hasRole: (role: string) => boolean
-  rolesActifs: string[]
-}
-
-const AuthContext = createContext<AuthCtx>({
-  user: null,
-  token: null,
-  isLoggedIn: false,
-  login: () => {},
-  logout: () => {},
-  updateUser: () => {},
-  hasRole: () => false,
-  rolesActifs: [],
-})
+import { tokenStore } from '../utils/tokenStore'
+import { readStoredUser, writeStoredUser, STORED_USER_SYNC_EVENT } from '../utils/storedUser'
+import { revokeSession } from '../api/authApi'
+import { unsubscribeFromPush } from '../lib/push'
+import { userApi } from '../api/userApi'
+import { clearFormDrafts } from '../utils/formDraft'
+import { clearMediaDrafts } from '../utils/mediaDraft'
+import { queryClient } from '../lib/queryClient'
+import type { LoginPayload } from '../types/session'
+import { CompteStaffRefuse, estCompteStaff } from '../utils/compteStaff'
+import { viderLots } from '../shared/uploads/stockageEnvoi'
+import { AuthContext, type AuthUser } from './useAuth'
+import { roleDeRepli, rolesUtilisables } from '../utils/roles'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => {
-    try { return JSON.parse(localStorage.getItem('rg_user') || 'null') }
-    catch { return null }
+    const stocke = readStoredUser<AuthUser>()
+    if (!estCompteStaff(stocke)) return stocke
+    // Session staff ouverte avant le refus côté serveur : on la ferme.
+    revokeSession()
+    tokenStore.clearTokens()
+    localStorage.removeItem('rg_user')
+    return null
   })
   const [token, setToken] = useState<string | null>(() =>
-    localStorage.getItem('rg_token')
+    tokenStore.getToken() || null
+  )
+  const [activeRole, setActiveRoleState] = useState<string>(() =>
+    localStorage.getItem('rg_active_role') || ''
   )
 
-  const login = (data: any) => {
+  const setActiveRole = (role: string) => {
+    setActiveRoleState(role)
+    localStorage.setItem('rg_active_role', role)
+  }
+
+  const login = (data: LoginPayload) => {
+    if (estCompteStaff(data.user)) throw new CompteStaffRefuse()
+    // Nouveau compte : aucune donnée en cache d'une session précédente (favoris, visites…).
+    queryClient.clear()
     const u: AuthUser = data.user
     const t: string = data.access_token
     const rt: string = data.refresh_token
     setUser(u)
     setToken(t)
-    localStorage.setItem('rg_user', JSON.stringify(u))
-    localStorage.setItem('rg_token', t)
-    localStorage.setItem('rg_refresh', rt)
+    writeStoredUser(u)
+    tokenStore.setToken(t)
+    tokenStore.setRefresh(rt)
+    // Lot 13 : un compte encore démarcheur arrive sur son rôle principal (ou propriétaire / prospect).
+    setActiveRole(roleDeRepli(u))
   }
 
   const logout = () => {
+    // Révocation serveur d'abord (lit les jetons avant leur effacement), puis nettoyage local.
+    revokeSession()
+    // Nettoyage à la déconnexion : un échec de désabonnement push ne doit pas bloquer la sortie
+    void unsubscribeFromPush().catch(() => {})
+    setActiveRoleState('')
+    localStorage.removeItem('rg_active_role')
     setUser(null)
     setToken(null)
     localStorage.removeItem('rg_user')
-    localStorage.removeItem('rg_token')
-    localStorage.removeItem('rg_refresh')
+    tokenStore.clearTokens()
+    clearFormDrafts()
+    void clearMediaDrafts()
+    // Photos en attente d'envoi (lot 1) : elles ne restent pas sur l'appareil.
+    void viderLots()
+    // Données du compte en cache (favoris, visites…) : rien ne doit passer au compte suivant.
+    queryClient.clear()
   }
 
   const updateUser = (partial: Partial<AuthUser>) => {
     if (!user) return
     const updated = { ...user, ...partial }
     setUser(updated)
-    localStorage.setItem('rg_user', JSON.stringify(updated))
+    writeStoredUser(updated)
   }
 
-  const rolesActifs: string[] = user?.roles_actifs ?? (user?.role ? [user.role] : [])
+  // Lot 13 : le rôle démarcheur, abandonné, n'est plus jamais proposé ni utilisé comme espace.
+  const rolesActifs: string[] = rolesUtilisables(user?.roles_actifs ?? (user?.role ? [user.role] : []))
 
   const hasRole = (role: string) => rolesActifs.includes(role)
 
-  useEffect(() => {}, [])
+  const fallbackRole = roleDeRepli(user)
+  const candidate = activeRole || fallbackRole
+  const computedActiveRole = (candidate && rolesActifs.includes(candidate)) ? candidate : fallbackRole
+  const rolesKey = rolesActifs.join(',')
+
+  // Après rechargement, seul le profil minimal est persisté (FE-E-006) :
+  // les coordonnées sont rechargées en mémoire depuis GET /users/me, sans persistance.
+  useEffect(() => {
+    if (!token) return
+    let cancelled = false
+    userApi.me().then((full) => {
+      if (cancelled || !full || typeof full !== 'object') return
+      const { roles_actifs: _r, role_principal: _p, role: _ro, ...details } = full
+      setUser(prev => (prev ? { ...prev, ...details } : prev))
+    }).catch(() => { /* enrichissement du profil facultatif : la session garde les informations déjà connues */ })
+    return () => { cancelled = true }
+  }, [token])
+
+  // Rôles changés par un rafraîchissement du jeton (intercepteur, BUG-05) : on ne reprend que les
+  // rôles, et seulement pour le même compte ; le nom et la photo chargés en mémoire, plus récents
+  // que le stockage, sont gardés.
+  useEffect(() => {
+    const synchroniser = () => {
+      const stocke = readStoredUser<AuthUser>()
+      if (!stocke) return
+      setUser(prev => (prev && prev.id === stocke.id
+        ? { ...prev, roles_actifs: stocke.roles_actifs, role_principal: stocke.role_principal, role: stocke.role }
+        : prev))
+    }
+    window.addEventListener(STORED_USER_SYNC_EVENT, synchroniser)
+    return () => window.removeEventListener(STORED_USER_SYNC_EVENT, synchroniser)
+  }, [])
+
+  // Resynchronise localStorage si activeRole stocké n'est plus valide
+  useEffect(() => {
+    if (user && activeRole && activeRole !== computedActiveRole) {
+      setActiveRole(computedActiveRole)
+    }
+  }, [user, rolesKey, activeRole, computedActiveRole])
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoggedIn: !!token, login, logout, updateUser, hasRole, rolesActifs }}>
+    <AuthContext.Provider value={{ user, token, isLoggedIn: !!token, login, logout, updateUser, hasRole, rolesActifs, activeRole: computedActiveRole, setActiveRole }}>
       {children}
     </AuthContext.Provider>
   )
 }
-
-export const useAuth = () => useContext(AuthContext)

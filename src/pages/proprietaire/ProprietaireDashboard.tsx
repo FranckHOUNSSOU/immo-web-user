@@ -1,753 +1,712 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { useAuth } from '../../context/useAuth'
+import { useNotifications } from '../../context/useNotifications'
+import { ModalSheet } from '../../components/ui/ModalSheet'
+import { useTheme } from '../../context/useTheme'
 import { biensApi } from '../../api/biensApi'
 import { visitesApi } from '../../api/visitesApi'
 import { userApi } from '../../api/userApi'
-import { walletApi } from '../../api/walletApi'
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
-const IcDash    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-const IcHome    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-const IcCal     = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-const IcClock   = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-const IcMoney   = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-const IcWallet  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-const IcPerson  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-const IcPlus    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
-const IcStar    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
-const IcShield  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-const IcWarn    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-const IcPin     = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-const IcTrash   = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-const IcChat    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-const IcRefresh = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-const IcChevron = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-const BLUE      = '#2E86C1'
-const DARK_BLUE = '#0F3460'
-
-type Tab = 'tableau' | 'biens' | 'reservations' | 'creneaux' | 'loyers' | 'portefeuille' | 'profil'
-
-const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-  { key: 'tableau',       label: 'Tableau',       icon: <IcDash /> },
-  { key: 'biens',         label: 'Mes biens',     icon: <IcHome /> },
-  { key: 'reservations',  label: 'Réservations',  icon: <IcCal /> },
-  { key: 'creneaux',      label: 'Créneaux',      icon: <IcClock /> },
-  { key: 'loyers',        label: 'Loyers',        icon: <IcMoney /> },
-  { key: 'portefeuille',  label: 'Portefeuille',  icon: <IcWallet /> },
-  { key: 'profil',        label: 'Profil',        icon: <IcPerson /> },
-]
-
-function typeLabel(t: string) {
-  const m: Record<string, string> = { maison: 'Maison', appart_vide: 'Appartement vide', appart_meuble: 'Appartement meublé', terrain: 'Terrain', guesthouse: 'Guesthouse' }
-  return m[t] || t
-}
-function fmtPrix(p: any) {
-  const n = Number(p); return n >= 1000 ? `${Math.round(n / 1000)}K FCFA` : `${n} FCFA`
-}
-function statutBien(s: string) {
-  if (s === 'approuve')    return { label: 'Publié ✓',    color: '#4CAF50' }
-  if (s === 'rejete')      return { label: 'Rejeté ✗',    color: '#F44336' }
-  if (s === 'conditionnel') return { label: 'Conditionnel', color: '#FF9800' }
-  return { label: 'En attente', color: '#FF9800' }
-}
-function statutVisite(s: string) {
-  if (s === 'confirmee')       return { label: 'Confirmée',       color: '#4CAF50' }
-  if (s === 'annulee')         return { label: 'Annulée',         color: '#F44336' }
-  if (s === 'effectuee')       return { label: 'Effectuée',       color: BLUE }
-  if (s === 'contre_proposee') return { label: 'Contre-proposée', color: '#E67E22' }
-  return { label: 'En attente', color: '#FF9800' }
-}
-
-// ─── QuickAction ──────────────────────────────────────────────────────────────
-function QuickAction({ icon, color, label, onClick }: { icon: React.ReactNode; color: string; label: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="flex-1 bg-white rounded-2xl py-4 flex flex-col items-center gap-2 shadow-sm active:scale-95 transition-transform">
-      <div className="w-11 h-11 rounded-[13px] flex items-center justify-center" style={{ background: color + '20' }}>
-        <span style={{ color }}>{icon}</span>
-      </div>
-      <span className="text-[11px] font-semibold text-text-dark text-center leading-tight">{label}</span>
-    </button>
-  )
-}
-
-// ─── Tab: Mes Biens ───────────────────────────────────────────────────────────
-function MesBiensTab() {
-  const [biens, setBiens] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('Tous')
-  const navigate = useNavigate()
-
-  const load = async () => {
-    setLoading(true)
-    try { const d = await biensApi.mesBiens(); setBiens(Array.isArray(d) ? d : d.data || []) } catch (_) {}
-    setLoading(false)
-  }
-  useEffect(() => { load() }, [])
-
-  const filtered = filter === 'Tous' ? biens
-    : filter === 'Publié' ? biens.filter(b => b.statut_moderation === 'approuve')
-    : filter === 'En attente' ? biens.filter(b => b.statut_moderation === 'en_attente')
-    : biens.filter(b => b.statut_moderation === 'rejete')
-
-  const del = async (id: number) => {
-    if (!confirm('Supprimer ce bien ?')) return
-    try { await biensApi.delete(id); load() } catch (_) {}
-  }
-
-  return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="bg-white px-4 py-3 border-b border-divider flex-shrink-0">
-        <div className="flex items-center justify-between mb-3">
-          <p className="font-bold text-text-dark">{biens.length} bien{biens.length > 1 ? 's' : ''}</p>
-          <div className="flex gap-2">
-            <button onClick={() => navigate('/nouveau-bien')} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-xs font-semibold" style={{ background: BLUE }}>
-              <IcPlus /> Ajouter
-            </button>
-            <button onClick={load} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: BLUE + '15', color: BLUE }}>
-              <IcRefresh /> Actualiser
-            </button>
-          </div>
-        </div>
-        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          {['Tous', 'Publié', 'En attente', 'Rejeté'].map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold border"
-              style={filter === f ? { background: BLUE, color: '#fff', borderColor: BLUE } : { color: '#9E9E9E', borderColor: '#E8EAED' }}>
-              {f}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        {loading ? (
-          [1,2,3].map(n => <div key={n} className="h-48 bg-white rounded-2xl animate-pulse mb-3" />)
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-4" style={{ background: BLUE + '15' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth={1.5} className="w-10 h-10"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-            </div>
-            <p className="font-bold text-text-dark mb-1">Aucun bien trouvé</p>
-            <p className="text-sm text-text-grey mb-5">Publiez votre premier bien</p>
-            <button onClick={() => navigate('/nouveau-bien')} className="flex items-center gap-2 px-5 py-3 rounded-xl text-white font-bold text-sm" style={{ background: BLUE }}>
-              <IcPlus /> Ajouter un bien
-            </button>
-          </div>
-        ) : filtered.map(b => {
-          const { label, color } = statutBien(b.statut_moderation || 'en_attente')
-          const loc = b.localisation
-          const adresse = loc ? `${loc.quartier ? loc.quartier + ', ' : ''}${loc.ville || ''}` : '—'
-          const cover = b.photos?.find((p: any) => p.is_cover) || b.photos?.[0]
-          return (
-            <div key={b.id} className="bg-white rounded-2xl shadow-sm overflow-hidden mb-3">
-              <div className="relative h-32">
-                {cover?.url
-                  ? <img src={cover.url} className="w-full h-full object-cover" alt="" />
-                  : <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${DARK_BLUE}cc, ${BLUE}aa)` }}><svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth={1.5} className="w-12 h-12"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></div>
-                }
-                <div className="absolute inset-0 bg-black/20" />
-                <span className="absolute top-3 left-3 px-2 py-1 rounded-lg text-white text-[11px] font-bold" style={{ background: color }}>{label}</span>
-                <button onClick={() => del(b.id)} className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center text-white" style={{ background: 'rgba(255,255,255,0.2)' }}><IcTrash /></button>
-                <span className="absolute bottom-3 left-3 text-white text-sm font-bold">{fmtPrix(b.prix)}{b.transaction === 'location' ? '/mois' : ''}</span>
-              </div>
-              <div className="p-3.5">
-                <p className="font-bold text-text-dark text-sm">{typeLabel(b.type)}</p>
-                <div className="flex items-center gap-1 mt-0.5"><span className="text-text-grey"><IcPin /></span><span className="text-xs text-text-grey">{adresse}</span></div>
-                {b.statut_moderation === 'rejete' && b.motif_refus && (
-                  <div className="mt-2 p-2 rounded-lg bg-danger/5 border border-danger/20"><p className="text-danger text-xs">{b.motif_refus}</p></div>
-                )}
-                {b.statut_moderation === 'en_attente' && (
-                  <div className="mt-2 p-2 rounded-lg bg-warning/5 border border-warning/20"><p className="text-warning text-xs">En attente de validation par l'administrateur.</p></div>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ─── Tab: Réservations ────────────────────────────────────────────────────────
-function ReservationsTab() {
-  const [visites, setVisites] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('Toutes')
-  const [cpId, setCpId] = useState<number | null>(null)
-  const [cpDate, setCpDate] = useState('')
-  const [cpTime, setCpTime] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-
-  const load = async () => {
-    setLoading(true)
-    try { const d = await visitesApi.reservationsRecues(); setVisites(Array.isArray(d) ? d : d.data || []) } catch (_) {}
-    setLoading(false)
-  }
-  useEffect(() => { load() }, [])
-
-  const filtered = filter === 'Toutes' ? visites
-    : filter === 'À traiter' ? visites.filter(v => v.statut === 'en_attente')
-    : visites.filter(v => v.statut === 'confirmee')
-
-  const confirmer = async (id: number) => {
-    try { await visitesApi.confirmerVisite(id); load() } catch (_) {}
-  }
-
-  const contreProposer = async () => {
-    if (!cpId || !cpDate || !cpTime) return
-    setSubmitting(true)
-    try {
-      const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1'
-      await fetch(`${BASE}/visites/${cpId}/contre-proposer`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('rg_token') || ''}` },
-        body: JSON.stringify({ date_proposee: `${cpDate}T${cpTime}:00` }),
-      })
-      setCpId(null); setCpDate(''); setCpTime('')
-      load()
-    } catch (_) {}
-    setSubmitting(false)
-  }
-
-  return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="bg-white border-b border-divider flex flex-shrink-0">
-        {['Toutes', 'À traiter', 'Confirmées'].map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            className="flex-1 py-3 text-xs font-bold border-b-2 transition-colors"
-            style={filter === f ? { borderColor: BLUE, color: BLUE } : { borderColor: 'transparent', color: '#9E9E9E' }}>
-            {f}
-          </button>
-        ))}
-      </div>
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        {loading ? (
-          [1,2].map(n => <div key={n} className="h-40 bg-white rounded-2xl animate-pulse mb-3" />)
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: BLUE + '15' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth={1.5} className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            </div>
-            <p className="font-bold text-text-dark mb-1">Aucune réservation</p>
-            <p className="text-sm text-text-grey text-center">Les demandes de visite apparaîtront ici</p>
-          </div>
-        ) : filtered.map((v, i) => {
-          const { label, color } = statutVisite(v.statut)
-          const nom = `${v.prospect?.prenom || ''} ${v.prospect?.nom || ''}`.trim() || 'Client'
-          const init = nom.charAt(0).toUpperCase()
-          const bType = typeLabel(v.bien?.type || '')
-          const bLoc = v.bien?.localisation ? `${v.bien.localisation.quartier || ''} ${v.bien.localisation.ville || ''}`.trim() : '—'
-          const dateStr = v.date_souhaitee ? new Date(v.date_souhaitee).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
-          return (
-            <div key={v.id || i} className="bg-white rounded-2xl shadow-sm mb-3 p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-11 h-11 rounded-[13px] flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
-                  style={{ background: `linear-gradient(135deg, ${BLUE}, ${DARK_BLUE})` }}>{init}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-text-dark text-sm">{nom}</p>
-                  <p className="text-xs text-text-grey">{v.prospect?.telephone || '—'}</p>
-                </div>
-                <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold flex-shrink-0" style={{ background: color + '20', color }}>{label}</span>
-              </div>
-              <div className="bg-surface-g rounded-xl p-3 mb-3">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span style={{ color: BLUE }}><IcHome /></span>
-                  <p className="text-xs font-medium text-text-dark truncate">{bType} — {bLoc}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-text-grey"><IcCal /></span>
-                  <p className="text-xs text-text-grey">Demandé pour : {dateStr}</p>
-                </div>
-              </div>
-              {v.statut === 'contre_proposee' && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl border mb-3 text-xs font-medium" style={{ background: '#E67E2210', borderColor: '#E67E2240', color: '#E67E22' }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5 flex-shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                  Contre-proposition envoyée. En attente du client.
-                </div>
-              )}
-              {v.paiement_effectue && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl border mb-3 text-xs font-semibold" style={{ background: '#4CAF5010', borderColor: '#4CAF5030', color: '#4CAF50' }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5 flex-shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                  Frais de visite payés
-                </div>
-              )}
-              <div className="flex gap-2">
-                <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold" style={{ borderColor: BLUE + '50', color: BLUE, background: BLUE + '10' }}>
-                  <IcChat /> Chat
-                </button>
-                {v.statut === 'en_attente' && <>
-                  <button onClick={() => setCpId(v.id)} className="flex-1 py-2 rounded-xl border text-xs font-bold text-center" style={{ borderColor: BLUE + '80', color: BLUE }}>Autre créneau</button>
-                  <button onClick={() => confirmer(v.id)} className="flex-1 py-2 rounded-xl text-white text-xs font-bold" style={{ background: '#4CAF50' }}>Confirmer</button>
-                </>}
-                {v.statut === 'confirmee' && (
-                  <button onClick={async () => { try { await visitesApi.marquerEffectuee(v.id); load() } catch (_) {} }} className="flex-1 py-2 rounded-xl text-white text-xs font-bold" style={{ background: BLUE }}>Marquer effectuée</button>
-                )}
-              </div>
-              {cpId === v.id && (
-                <div className="mt-3 pt-3 border-t border-divider">
-                  <p className="text-sm font-bold text-text-dark mb-3">Proposer un autre créneau</p>
-                  <div className="space-y-2 mb-3">
-                    <input type="date" value={cpDate} onChange={e => setCpDate(e.target.value)}
-                      className="w-full bg-surface-g rounded-xl px-3 py-2.5 text-sm outline-none border border-divider focus:border-primary" />
-                    <input type="time" value={cpTime} onChange={e => setCpTime(e.target.value)}
-                      className="w-full bg-surface-g rounded-xl px-3 py-2.5 text-sm outline-none border border-divider focus:border-primary" />
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setCpId(null)} className="flex-1 py-2.5 rounded-xl border border-divider text-sm font-semibold text-text-grey">Annuler</button>
-                    <button onClick={contreProposer} disabled={!cpDate || !cpTime || submitting}
-                      className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: BLUE }}>
-                      {submitting ? 'Envoi…' : 'Envoyer'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ─── Tab: Créneaux ────────────────────────────────────────────────────────────
-function CreneauxTab() {
-  const [creneaux, setCreneaux] = useState<any[]>([])
-  const [biens, setBiens] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ bien_id: '', date: '', heure: '' })
-  const [saving, setSaving] = useState(false)
-
-  const load = async () => {
-    setLoading(true)
-    try {
-      const [c, b] = await Promise.allSettled([visitesApi.mesCreneaux(), biensApi.mesBiens()])
-      if (c.status === 'fulfilled') setCreneaux(Array.isArray(c.value) ? c.value : c.value.data || [])
-      if (b.status === 'fulfilled') setBiens(Array.isArray(b.value) ? b.value : b.value.data || [])
-    } catch (_) {}
-    setLoading(false)
-  }
-  useEffect(() => { load() }, [])
-
-  const save = async () => {
-    if (!form.date || !form.heure || !form.bien_id) return
-    setSaving(true)
-    try {
-      await visitesApi.creerCreneau({ bien_id: Number(form.bien_id), debut: `${form.date}T${form.heure}:00`, duree_minutes: 60 })
-      setShowForm(false); setForm({ bien_id: '', date: '', heure: '' }); load()
-    } catch (_) {}
-    setSaving(false)
-  }
-
-  const del = async (id: number) => {
-    try { await visitesApi.supprimerCreneau(id); load() } catch (_) {}
-  }
-
-  return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="bg-white px-4 py-3 border-b border-divider flex items-center justify-between flex-shrink-0">
-        <p className="font-bold text-text-dark">{creneaux.length} créneau{creneaux.length > 1 ? 'x' : ''}</p>
-        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-xs font-semibold" style={{ background: BLUE }}>
-          <IcPlus /> Ajouter
-        </button>
-      </div>
-      {showForm && (
-        <div className="bg-white border-b border-divider px-4 py-4 space-y-2 flex-shrink-0">
-          <select value={form.bien_id} onChange={e => setForm({ ...form, bien_id: e.target.value })}
-            className="w-full bg-surface-g rounded-xl px-3 py-2.5 text-sm outline-none border border-divider">
-            <option value="">Choisir un bien</option>
-            {biens.map(b => <option key={b.id} value={b.id}>{typeLabel(b.type)} — {b.localisation?.ville}</option>)}
-          </select>
-          <div className="flex gap-2">
-            <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
-              className="flex-1 bg-surface-g rounded-xl px-3 py-2.5 text-sm outline-none border border-divider" />
-            <input type="time" value={form.heure} onChange={e => setForm({ ...form, heure: e.target.value })}
-              className="flex-1 bg-surface-g rounded-xl px-3 py-2.5 text-sm outline-none border border-divider" />
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl border border-divider text-sm font-semibold text-text-grey">Annuler</button>
-            <button onClick={save} disabled={saving} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: BLUE }}>
-              {saving ? 'Enregistrement…' : 'Créer'}
-            </button>
-          </div>
-        </div>
-      )}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        {loading ? [1,2].map(n => <div key={n} className="h-20 bg-white rounded-xl animate-pulse mb-3" />) : creneaux.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: BLUE + '15' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth={1.5} className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </div>
-            <p className="font-bold text-text-dark mb-1">Aucun créneau</p>
-            <p className="text-sm text-text-grey">Créez des créneaux pour recevoir des visites</p>
-          </div>
-        ) : creneaux.map((c, i) => (
-          <div key={c.id || i} className="bg-white rounded-xl p-4 mb-3 shadow-sm flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: BLUE + '15' }}>
-              <span style={{ color: BLUE }}><IcClock /></span>
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-text-dark text-sm">
-                {c.debut ? new Date(c.debut).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '—'}
-              </p>
-              <p className="text-xs text-text-grey">
-                {c.debut ? new Date(c.debut).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}{c.duree_minutes ? ` · ${c.duree_minutes} min` : ''}
-              </p>
-            </div>
-            <button onClick={() => del(c.id)} className="text-danger p-1"><IcTrash /></button>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ─── Tab: Loyers ──────────────────────────────────────────────────────────────
-function LoyersTab() {
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  useEffect(() => { userApi.loyersStats().then(setData).catch(() => {}).finally(() => setLoading(false)) }, [])
-  if (loading) return <div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
-  const loyers: any[] = data?.loyers || []
-  return (
-    <div className="flex-1 overflow-y-auto px-4 py-5">
-      <div className="rounded-2xl p-5 mb-5 text-white" style={{ background: `linear-gradient(135deg, ${DARK_BLUE}, ${BLUE})`, boxShadow: `0 8px 20px ${BLUE}4D` }}>
-        <p className="text-white/70 text-sm mb-1">Total à percevoir</p>
-        <p className="text-2xl font-bold">{Number(data?.total_a_payer ?? 0).toLocaleString('fr-FR')} FCFA</p>
-        <div className="flex gap-4 mt-4">
-          <div><p className="text-white/60 text-xs">Perçu</p><p className="font-bold">{Number(data?.total_paye ?? 0).toLocaleString('fr-FR')} FCFA</p></div>
-          <div className="w-px bg-white/20" />
-          <div><p className="text-white/60 text-xs">En attente</p><p className="font-bold">{Number(data?.en_attente ?? 0).toLocaleString('fr-FR')} FCFA</p></div>
-        </div>
-      </div>
-      {loyers.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: BLUE + '15' }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth={1.5} className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          </div>
-          <p className="font-bold text-text-dark mb-1">Aucun loyer</p>
-          <p className="text-sm text-text-grey">Les loyers apparaîtront ici</p>
-        </div>
-      ) : loyers.map((l: any, i: number) => (
-        <div key={i} className="bg-white rounded-xl p-4 mb-3 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="font-bold text-text-dark text-sm">{typeLabel(l.bien?.type || '')} — {l.bien?.localisation?.ville || '—'}</p>
-            <p className="text-xs text-text-grey mt-0.5">{l.locataire?.prenom} {l.locataire?.nom}</p>
-          </div>
-          <div className="text-right">
-            <p className="font-bold text-text-dark text-sm">{Number(l.montant).toLocaleString('fr-FR')} FCFA</p>
-            <span className={`text-xs font-semibold ${l.statut === 'paye' ? 'text-success' : 'text-warning'}`}>{l.statut === 'paye' ? 'Payé' : 'En attente'}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ─── Tab: Portefeuille ────────────────────────────────────────────────────────
-function PortefeuilleTab() {
-  const [wallet, setWallet] = useState<any>(null)
-  const [transactions, setTrans] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showRetrait, setShowRetrait] = useState(false)
-  const [montant, setMontant] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [retraitOk, setRetraitOk] = useState(false)
-
-  const load = async () => {
-    setLoading(true)
-    try {
-      const [w, t] = await Promise.all([walletApi.me(), walletApi.transactions()])
-      setWallet(w); setTrans(Array.isArray(t) ? t : t.data || [])
-    } catch (_) {}
-    setLoading(false)
-  }
-  useEffect(() => { load() }, [])
-
-  const demanderRetrait = async () => {
-    setSubmitting(true)
-    try { await walletApi.demandeRetrait(Number(montant)); setRetraitOk(true); setShowRetrait(false); setMontant(''); load() } catch (_) {}
-    setSubmitting(false)
-  }
-
-  const solde = Number(wallet?.solde || 0)
-
-  return (
-    <div className="flex-1 overflow-y-auto px-4 py-5">
-      {retraitOk && (
-        <div className="mb-4 px-4 py-3 rounded-xl flex items-center gap-2" style={{ background: '#22C55E10', border: '1px solid #22C55E30' }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth={2.5} className="w-4 h-4 flex-shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <p className="text-sm font-semibold" style={{ color: '#22C55E' }}>Demande de retrait envoyée.</p>
-        </div>
-      )}
-      <div className="rounded-2xl p-5 mb-5 text-white" style={{ background: `linear-gradient(135deg, ${DARK_BLUE}, ${BLUE})`, boxShadow: `0 8px 20px ${BLUE}4D` }}>
-        <p className="text-white/70 text-sm mb-1">Solde disponible</p>
-        <p className="text-2xl font-bold mb-4">{loading ? '…' : solde.toLocaleString('fr-FR')} FCFA</p>
-        <button onClick={() => setShowRetrait(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm" style={{ background: 'rgba(255,255,255,0.2)' }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8l-8 8-8-8"/></svg>
-          Demander un retrait
-        </button>
-      </div>
-      {showRetrait && (
-        <div className="mb-4 bg-white rounded-2xl p-4 shadow-sm">
-          <p className="font-bold text-text-dark mb-3">Montant à retirer</p>
-          <input type="number" value={montant} onChange={e => setMontant(e.target.value)} placeholder="Ex: 50000" min={1} max={solde}
-            className="w-full bg-surface-g border border-divider rounded-xl px-4 py-3 text-sm outline-none focus:border-primary mb-3" />
-          <div className="flex gap-2">
-            <button onClick={() => setShowRetrait(false)} className="flex-1 py-2.5 rounded-xl border border-divider text-sm font-semibold text-text-grey">Annuler</button>
-            <button onClick={demanderRetrait} disabled={submitting || !montant} className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50" style={{ background: BLUE }}>
-              {submitting ? 'Envoi…' : 'Envoyer'}
-            </button>
-          </div>
-        </div>
-      )}
-      <p className="font-bold text-text-dark mb-3">Transactions</p>
-      {loading ? [1,2,3].map(n => <div key={n} className="h-14 bg-white rounded-xl animate-pulse mb-2" />) : transactions.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="font-bold text-text-dark mb-1">Aucune transaction</p>
-          <p className="text-sm text-text-grey">Vos commissions apparaîtront ici.</p>
-        </div>
-      ) : transactions.map((t: any, i: number) => {
-        const isCredit = t.type === 'credit' || Number(t.montant) > 0
-        return (
-          <div key={i} className="flex items-center gap-3 p-3.5 bg-white rounded-xl mb-2 shadow-sm">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: isCredit ? '#22C55E15' : '#EF444415' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke={isCredit ? '#22C55E' : '#EF4444'} strokeWidth={2.5} className="w-4 h-4">
-                {isCredit ? <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8l-8-8-8 8"/> : <path strokeLinecap="round" strokeLinejoin="round" d="M12 20V4m8 8l-8 8-8-8"/>}
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-text-dark text-xs truncate">{t.description || (isCredit ? 'Crédit' : 'Débit')}</p>
-              <p className="text-[10px] text-text-grey">{new Date(t.created_at).toLocaleDateString('fr-FR')}</p>
-            </div>
-            <p className="font-bold text-xs flex-shrink-0" style={{ color: isCredit ? '#22C55E' : '#EF4444' }}>
-              {isCredit ? '+' : '-'}{Math.abs(Number(t.montant)).toLocaleString('fr-FR')} F
-            </p>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ─── Tab: Profil ──────────────────────────────────────────────────────────────
-function ProfilTab({ user }: { user: any }) {
-  const navigate = useNavigate()
-  const { logout } = useAuth()
-  const initials = `${user?.prenom?.[0] || ''}${user?.nom?.[0] || ''}`.toUpperCase()
-  const score = user?.score_credibilite ?? 100
-  return (
-    <div className="flex-1 overflow-y-auto pb-10">
-      <div className="p-5 text-center">
-        <div className="w-20 h-20 rounded-full mx-auto mb-3 flex items-center justify-center text-white text-2xl font-bold" style={{ background: `linear-gradient(135deg, ${DARK_BLUE}, ${BLUE})` }}>{initials}</div>
-        <p className="font-bold text-text-dark text-lg">{user?.prenom} {user?.nom}</p>
-        <p className="text-sm text-text-grey">{user?.email || user?.telephone}</p>
-      </div>
-      <div className="px-4 mb-4">
-        <div className="rounded-2xl p-4" style={{ background: `linear-gradient(135deg, ${DARK_BLUE}, ${BLUE})` }}>
-          <p className="text-white/70 text-xs mb-1">Score de crédibilité</p>
-          <p className="text-white text-2xl font-bold mb-3">{score} / 100</p>
-          <div className="h-1.5 rounded-full bg-white/20 mb-4"><div className="h-full rounded-full bg-white" style={{ width: `${score}%` }} /></div>
-          <div className="flex">
-            <div className="flex-1"><p className="text-white/60 text-[10px]">Étoiles</p><p className="text-white font-bold text-sm">{user?.nb_etoiles ?? 0}</p></div>
-            <div className="w-px bg-white/20 mx-3" />
-            <div className="flex-1"><p className="text-white/60 text-[10px]">Pénalité</p><p className="text-white font-bold text-sm">{user?.penalite_pourcentage ?? 0}%</p></div>
-          </div>
-        </div>
-      </div>
-      <div className="px-4 space-y-2">
-        {[{ label: 'Modifier le profil', to: '/profil/edit' }, { label: 'Changer le mot de passe', to: '/profil/password' }].map(item => (
-          <button key={item.label} onClick={() => navigate(item.to)} className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm">
-            <span className="text-sm font-semibold text-text-dark">{item.label}</span>
-            <IcChevron />
-          </button>
-        ))}
-        <button onClick={() => { logout(); navigate('/login') }} className="w-full mt-2 py-3.5 rounded-xl text-danger font-bold text-sm border border-danger/20 bg-danger/5">
-          Se déconnecter
-        </button>
-      </div>
-    </div>
-  )
-}
+import { loyersApi } from '../../api/loyersApi'
+import logoUrl from '../../assets/REFUGE-LOGO.webp'
+import villaImg from '../../assets/login/villa.jpg'
+import PropertyStatsCard from '../../components/PropertyStatsCard'
+import { AnimatedGroup } from '../../components/ui/animated-group'
+import { motion, AnimatePresence } from 'framer-motion'
+import { usePageTitle } from '../../utils/usePageTitle'
+import { IcPayments, IcChevron, IcMessagesNav } from './tabs/icons'
+import { IcHome, IcCal, IcClock, IcWallet, IcPlus, IcStar, IcShield, IcPin, IcLogout, LiveIndicator } from './tabs/shared'
+import { TABS, NAV_ITEMS } from './tabs/navigation'
+import { BLUE, ROLE_LABELS, ROLE_ROUTES, bienLabel, bienComposition, fmtPrix, statutBien, buildCountSeries, BLUE_TX } from './tabs/outils'
+import type { Tab } from './tabs/outils'
+import { MesBiensTab } from './tabs/MesBiensTab'
+import { NotificationsTab } from './tabs/NotificationsTab'
+import { MessagesTab } from './tabs/MessagesTab'
+import { ReservationsTab } from './tabs/ReservationsTab'
+import { LoyersTab } from './tabs/LoyersTab'
+import { PortefeuilleTab } from './tabs/PortefeuilleTab'
+import { TransactionsTab } from './tabs/TransactionsTab'
+import { RolesTab } from './tabs/RolesTab'
+import { ProfilTab } from './tabs/ProfilTab'
+import CarouselPauseToggle from '../../components/CarouselPauseToggle'
+import { useCarouselAutoplay } from '../../hooks/useCarouselAutoplay'
+import { onActivateKey } from '../../utils/keyboard'
+import type { Bien, Visite } from '../../types/api'
+import type { LoyersDashboard, ProprioProfil } from '../../types/proprietaire'
+import { withAlpha } from '../../utils/color'
+import ErrorState from '../../components/ErrorState'
+import { imageDeCouverture } from '../../utils/imageCouverture'
+import { suffixeUnite } from '../../utils/prix'
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
-export default function ProprietaireDashboard() {
-  const { user: authUser } = useAuth()
-  const navigate = useNavigate()
-  const [tab, setTab] = useState<Tab>('tableau')
-  const [user, setUser] = useState<any>(null)
-  const [biens, setBiens] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
 
-  const loadData = async () => {
+const PRIMARY_TABS: Tab[] = ['tableau', 'biens', 'reservations', 'loyers']
+
+export default function ProprietaireDashboard() {
+  usePageTitle('Espace propriétaire')
+  const { user: authUser, logout, rolesActifs, activeRole, setActiveRole } = useAuth()
+  const { unreadMessages, unreadAlertesEspace: unreadAlertes, refresh: refreshNotifications } = useNotifications()
+  const navigate = useNavigate()
+  const location = useLocation()
+  // Le thème suit le réglage global (Profil > Paramètres > Apparence).
+  const isDark = useTheme().theme === 'dark'
+  // `location.state` est typé `any` par react-router : on le déclare avec sa vraie forme.
+  const navState: { fromDetail?: boolean; tab?: Tab; convId?: number } | null = location.state
+  const fromDetail = !!navState?.fromDetail
+  const [isScrolled, setIsScrolled] = useState(fromDetail)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const tabMounted = useRef(false)
+  const [rolesMenuOpen, setRolesMenuOpen] = useState<'sidebar' | 'topbar' | null>(null)
+  // Le trigger et le panneau du menu ne se touchent pas (marge de quelques px
+  // entre les deux) : sans délai, quitter le trigger pour aller vers le
+  // panneau traverse un instant une zone hors des deux éléments et ferme le
+  // menu avant même de l'atteindre. On referme donc après un court délai,
+  // annulé si le pointeur ré-entre sur le trigger OU le panneau entre-temps.
+  const rolesMenuCloseTimer = useRef<number | null>(null)
+  const openRolesMenu = (which: 'sidebar' | 'topbar') => {
+    if (rolesMenuCloseTimer.current != null) { clearTimeout(rolesMenuCloseTimer.current); rolesMenuCloseTimer.current = null }
+    setRolesMenuOpen(which)
+  }
+  const scheduleCloseRolesMenu = () => {
+    if (rolesMenuCloseTimer.current != null) clearTimeout(rolesMenuCloseTimer.current)
+    rolesMenuCloseTimer.current = window.setTimeout(() => setRolesMenuOpen(null), 250)
+  }
+  useEffect(() => () => { if (rolesMenuCloseTimer.current != null) clearTimeout(rolesMenuCloseTimer.current) }, [])
+  // Le flyout sidebar utilise position:fixed avec des coordonnées calculées
+  // au survol — la <nav> du menu est overflow-y-auto, ce qui rend son
+  // overflow-x implicitement non "visible" (spec CSS) et couperait un
+  // absolute positionné "left-full" en dehors de sa boîte.
+  const goToRoleSpace = (role: string) => {
+    setActiveRole(role)
+    navigate(ROLE_ROUTES[role] || '/')
+  }
+  const [tab, setTab] = useState<Tab>(navState?.tab ?? 'tableau')
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [messagesInitConvId, setMessagesInitConvId] = useState<number | null>(navState?.convId ?? null)
+  const [messagesInitDraft, setMessagesInitDraft] = useState<string | null>(null)
+  const openTab = (t: Tab, convId?: number, draftMessage?: string) => {
+    if (t === 'messages') {
+      if (convId != null) setMessagesInitConvId(convId)
+      if (draftMessage != null) setMessagesInitDraft(draftMessage)
+    }
+    setTab(t)
+  }
+  // Ignore le premier montage : isScrolled est déjà à la bonne valeur initiale
+  // (pill si on vient du détail, false sinon). Les changements de tab suivants
+  // remettent bien à zéro.
+  useEffect(() => {
+    if (!tabMounted.current) { tabMounted.current = true; return }
+    setIsScrolled(false)
+    setMenuOpen(false)
+    if (tab !== 'messages') { setMessagesInitConvId(null); setMessagesInitDraft(null) }
+  }, [tab])
+
+  // Animation pill → pleine largeur à l'arrivée depuis la page détail
+  useEffect(() => {
+    if (!fromDetail) return
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setIsScrolled(false))
+    })
+    return () => cancelAnimationFrame(id)
+  }, [fromDetail])
+
+  const [user, setUser] = useState<ProprioProfil | null>(null)
+  const [biens, setBiens] = useState<Bien[]>([])
+  const { ref: carousel2Ref, index: carousel2Idx, setIndex: setCarousel2Idx, paused: carousel2Paused, togglePause: toggleCarousel2, autoplayAvailable, containerProps: carousel2Props } =
+    useCarouselAutoplay(Math.min(5, biens.length))
+  const [loading, setLoading] = useState(true)
+  const [loyersDash, setLoyersDash] = useState<LoyersDashboard | null>(null)
+  const [visites, setVisites] = useState<Visite[]>([])
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  // Échec d'un chargement demandé par la personne (ouverture ou « Réessayer ») ; un rafraîchissement
+  // automatique qui échoue garde les données déjà affichées sans bruit.
+  const [loadError, setLoadError] = useState(false)
+  const [hoveredOverviewEl, setHoveredOverviewEl] = useState<string | null>(null)
+
+  const loadData = async (silent = false) => {
+    if (silent) setRefreshing(true)
     try {
-      const [u, b] = await Promise.allSettled([userApi.me(), biensApi.mesBiens()])
+      const [u, b, l, v] = await Promise.allSettled([
+        userApi.me(), biensApi.mesBiens(), loyersApi.dashboard(), visitesApi.reservationsRecues(),
+      ])
       if (u.status === 'fulfilled') setUser(u.value?.user || u.value)
       if (b.status === 'fulfilled') setBiens(Array.isArray(b.value) ? b.value : b.value.data || [])
-    } catch (_) {}
+      if (l.status === 'fulfilled') setLoyersDash(l.value)
+      if (v.status === 'fulfilled') setVisites(Array.isArray(v.value) ? v.value : v.value.data || [])
+      const echec = b.status === 'rejected' || l.status === 'rejected' || v.status === 'rejected'
+      if (!echec) { setLoadError(false); setLastUpdated(new Date()) }
+      else if (!silent) setLoadError(true)
+    } catch {
+      if (!silent) setLoadError(true)
+    }
     setLoading(false)
+    setRefreshing(false)
   }
-  useEffect(() => { loadData() }, [])
+
+  // Tableau de bord "temps réel" : première charge immédiate, puis on
+  // rafraîchit silencieusement toutes les 30s (et quand l'onglet redevient
+  // visible) tant qu'on reste sur l'onglet Tableau — pas de spinner plein
+  // écran pour ces rafraîchissements, juste l'horodatage qui bouge.
+  // Rechargé à chaque changement d'espace (BUG-04 du cahier des rôles, FE-A-004) : pas de données
+  // d'un espace précédent après un aller-retour dans la même session.
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- loadData est recréée à chaque rendu ; seul le changement d'espace doit recharger
+  useEffect(() => { loadData() }, [activeRole])
+  useEffect(() => {
+    if (tab !== 'tableau') return
+    // Onglet masqué : aucun rafraîchissement (la reprise de visibilité recharge déjà)
+    const id = setInterval(() => { if (document.visibilityState === 'visible') loadData(true) }, 30000)
+    const onVisible = () => { if (document.visibilityState === 'visible') loadData(true) }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVisible) }
+  }, [tab])
 
   const me = user || authUser
   const initials = `${me?.prenom?.[0] || ''}${me?.nom?.[0] || ''}`.toUpperCase()
   const score = me?.score_credibilite ?? 100
-  const approuves = biens.filter(b => b.statut_moderation === 'approuve').length
-  const enAttente = biens.filter(b => b.statut_moderation === 'en_attente').length
-  const rejetes   = biens.filter(b => b.statut_moderation === 'rejete').length
+  const reservationsEnAttente = visites.filter(v => v.statut === 'en_attente').length
+  const totalVues = biens.reduce((s, b) => s + (b.nb_consultations || 0), 0)
+
+  const visitesSeries6 = buildCountSeries(visites, v => v.date_souhaitee)
+  const visitesMoisActuel = visitesSeries6[visitesSeries6.length - 1]?.value ?? 0
+  const visitesMoisPrecedent = visitesSeries6[visitesSeries6.length - 2]?.value ?? 0
+  const visitesTrendPct = visitesMoisPrecedent > 0
+    ? Math.round(((visitesMoisActuel - visitesMoisPrecedent) / visitesMoisPrecedent) * 100)
+    : undefined // mois précédent à 0 : pas de pourcentage défini (« +100 % » serait trompeur)
+
+  const hasVisites = visitesSeries6.some(m => m.value > 0)
+
+  // Alerte loyers — réutilise les données déjà chargées (loyersDash), sans
+  // appel réseau supplémentaire ; masquée si rien à signaler.
+  const loyersDashList = (loyersDash?.contrats || []).flatMap(c => c.loyers || [])
+  const loyersEnRetardCount = loyersDash?.stats?.loyers_en_retard ?? loyersDashList.filter(l => l.statut === 'en_retard').length
+  const loyersImpayesCount = loyersDashList.filter(l => l.statut === 'impaye').length
+
+  const biensOccupes = biens.filter(b => b.statut === 'occupe').length
+  const tauxOccupation = biens.length > 0 ? Math.round((biensOccupes / biens.length) * 100) : 0
+  const biensApprouves = biens.filter(b => b.statut_moderation === 'approuve').length
+  const biensEnAttente = biens.filter(b => b.statut_moderation === 'en_attente').length
+  const biensRejetes   = biens.filter(b => b.statut_moderation === 'rejete').length
+
+  const lastUpdatedLabel = lastUpdated
+    ? lastUpdated.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    : '—'
 
   return (
-    <div className="flex flex-col h-full bg-[#F4F6FA] relative">
+    <div className={`proprio-root${isDark ? '' : ' proprio-light'} flex flex-col h-full`}
+      style={{ background: 'var(--p-deep)' }}>
 
-      {/* Header */}
-      <div className="flex-shrink-0 px-5 pt-12 pb-6" style={{ background: `linear-gradient(135deg, ${DARK_BLUE} 0%, #1A5276 50%, ${BLUE} 100%)` }}>
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-11 h-11 rounded-[13px] flex items-center justify-center border flex-shrink-0"
-            style={{ background: 'rgba(255,255,255,0.2)', borderColor: 'rgba(255,255,255,0.3)' }}>
-            {loading
-              ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              : <span className="text-white font-bold text-sm">{initials}</span>}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-white/70 text-xs">Bonjour 👋</p>
-            <p className="text-white font-bold text-base truncate">{loading ? '…' : `${me?.prenom || ''} ${me?.nom || ''}`.trim()}</p>
-          </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border flex-shrink-0"
-            style={{ background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.25)' }}>
-            <IcHome />
-            <span className="text-white text-[11px] font-semibold">Propriétaire</span>
-          </div>
-        </div>
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { icon: <IcHome />,   value: `${biens.length}`,               label: 'Biens' },
-            { icon: <IcStar />,   value: `${me?.nb_etoiles ?? 0}`,        label: 'Étoiles' },
-            { icon: <IcShield />, value: `${score}`,                      label: 'Score' },
-            { icon: <IcWarn />,   value: `${me?.penalite_pourcentage ?? 0}%`, label: 'Pénalité' },
-          ].map(s => (
-            <div key={s.label} className="rounded-xl py-2.5 px-1 text-center border"
-              style={{ background: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.15)' }}>
-              <span className="text-white flex justify-center mb-1">{s.icon}</span>
-              <p className="text-white font-bold text-base leading-none">{s.value}</p>
-              <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.65)' }}>{s.label}</p>
+      {/* ── Navbar animée (HeroHeader pattern) ── */}
+      <header className={`fixed top-0 left-0 right-0 z-50 pointer-events-none transition-[padding] duration-300${isScrolled ? ' px-2' : ''}`}>
+        <nav
+          className="mx-auto pointer-events-auto border backdrop-blur-xl transition-all duration-300"
+          style={{
+            background: isScrolled ? 'var(--p-surface-glass)' : 'var(--p-surface)',
+            borderColor: 'var(--p-border)',
+            borderBottomWidth: isScrolled ? '1px' : '1px',
+            borderTopWidth: isScrolled ? '1px' : '0px',
+            borderLeftWidth: isScrolled ? '1px' : '0px',
+            borderRightWidth: isScrolled ? '1px' : '0px',
+            borderRadius: isScrolled ? '1rem' : '0px',
+            marginTop: isScrolled ? '8px' : '0px',
+            maxWidth: isScrolled ? '72rem' : '100%',
+            paddingLeft: isScrolled ? '1rem' : '0.75rem',
+            paddingRight: isScrolled ? '1rem' : '0.75rem',
+            boxShadow: isScrolled ? '0 8px 32px rgba(0,0,0,0.14)' : '0 1px 0 rgba(212,168,71,0.15)',
+          }}>
+          <div className="flex items-center gap-3 py-3">
+
+            {/* Logo */}
+            <button onClick={() => { setTab('tableau'); setIsScrolled(false) }} className="flex items-center gap-2 flex-shrink-0">
+              <img loading="lazy" src={logoUrl} alt="REFUGE" className="w-8 h-8 rounded-[8px] object-contain" />
+              <span className="hidden sm:block font-black text-[13px] tracking-tight" style={{ color: BLUE_TX }}>REFUGE</span>
+            </button>
+
+            {/* Nav tabs — desktop large uniquement : en dessous, la barre du bas (4 onglets + Plus) prend le relais */}
+            <div className="hidden xl:flex items-center gap-0.5 flex-1 justify-center">
+              {NAV_ITEMS.map(item => {
+                const active = tab === item.key
+                const badge = item.key === 'messages' ? unreadMessages : item.key === 'reservations' ? reservationsEnAttente : 0
+                return (
+                  <button key={item.key}
+                    onClick={() => { setTab(item.key); setIsScrolled(false); if (item.key === 'messages') refreshNotifications() }}
+                    className="relative whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.1em] px-3 py-2 rounded-lg"
+                    style={{
+                      ...(active ? { color: BLUE_TX, background: withAlpha(BLUE, '14') } : { color: 'var(--p-muted)' }),
+                      minHeight: '36px',
+                      transition: 'color 0.2s ease, background 0.2s ease',
+                    }}>
+                    {item.label}
+                    {badge > 0 && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full" style={{ background: 'var(--c-red-ios)' }} />}
+                  </button>
+                )
+              })}
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        {tab === 'tableau' && (
-          <div className="flex-1 overflow-y-auto">
-            <div className="px-5 py-5">
-              <p className="text-[17px] font-bold text-text-dark mb-3.5">Actions rapides</p>
-              <div className="flex gap-3 mb-7">
-                <QuickAction icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>} color={BLUE} label="Nouveau bien" onClick={() => navigate('/nouveau-bien')} />
-                <QuickAction icon={<IcCal />} color="#4B6BFF" label="Réservations" onClick={() => setTab('reservations')} />
-                <QuickAction icon={<IcClock />} color="#FF6B35" label="Créneaux" onClick={() => setTab('creneaux')} />
+            {/* Right actions */}
+            <div className="flex items-center gap-2 ml-auto">
+              {/* Alertes — onglet notifications interne à l'espace propriétaire */}
+              <button onClick={() => setTab('notifications')} title="Notifications"
+                className="relative w-8 h-8 rounded-lg flex items-center justify-center border transition-colors"
+                style={{ borderColor: tab === 'notifications' ? BLUE : 'var(--p-border)', background: 'var(--p-card)', color: tab === 'notifications' ? BLUE_TX : 'var(--p-muted)' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                {unreadAlertes > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full" style={{ background: 'var(--c-red-ios)' }} />}
+              </button>
+              {/* Profile + roles flyout */}
+              <div className="relative" onMouseEnter={() => openRolesMenu('topbar')} onMouseLeave={scheduleCloseRolesMenu}>
+                <button onClick={() => setTab('profil')} aria-label="Mon profil"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 border transition-colors"
+                  style={{ borderColor: 'var(--p-border)', background: 'var(--p-card)' }}>
+                  <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: BLUE }}>
+                    {loading ? '…' : initials}
+                  </div>
+                  <span className="hidden lg:block text-[13px] font-semibold truncate max-w-[96px]" style={{ color: 'var(--p-text)' }}>
+                    {loading ? '…' : me?.prenom || ''}
+                  </span>
+                </button>
+                {rolesMenuOpen === 'topbar' && rolesActifs.length > 1 && (
+                  <div className="absolute right-0 top-full mt-2 w-52 rounded-xl border py-1.5 z-30"
+                    style={{ background: 'var(--p-card)', borderColor: 'var(--p-border)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}
+                    onMouseEnter={() => openRolesMenu('topbar')} onMouseLeave={scheduleCloseRolesMenu}>
+                    <p className="px-3.5 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--p-muted)' }}>Mes espaces</p>
+                    {rolesActifs.map(r => (
+                      <button key={r} onClick={() => goToRoleSpace(r)}
+                        className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 text-sm text-left transition-colors"
+                        style={{ color: r === activeRole ? BLUE_TX : 'var(--p-text)', fontWeight: r === activeRole ? 700 : 500 }}>
+                        {ROLE_LABELS[r] || r}
+                        {r === activeRole && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: withAlpha(BLUE, '22'), color: BLUE_TX }}>Actuel</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-
-              {/* Occupation card */}
-              <div className="rounded-2xl p-5 mb-6" style={{ background: `linear-gradient(135deg, ${DARK_BLUE}, ${BLUE})`, boxShadow: `0 8px 20px ${BLUE}4D` }}>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="px-2.5 py-1 rounded-xl text-white text-xs font-semibold" style={{ background: 'rgba(255,255,255,0.15)' }}>Mes biens</span>
-                  <span className="text-white/70"><IcHome /></span>
+              {/* Déconnexion — desktop */}
+              <button onClick={() => { logout(); navigate('/login') }} title="Déconnexion"
+                className="hidden xl:flex h-8 rounded-lg items-center justify-center gap-2 px-3 border transition-colors text-xs font-bold"
+                style={{ borderColor: 'var(--p-border)', background: 'var(--p-card)', color: 'var(--tx-red)' }}>
+                <IcLogout />
+                <span>Déconnexion</span>
+              </button>
+              {/* Hamburger — mobile */}
+              <button onClick={() => setMenuOpen(o => !o)} aria-expanded={menuOpen} aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+                className="xl:hidden w-8 h-8 rounded-lg flex items-center justify-center border"
+                style={{ borderColor: 'var(--p-border)', background: 'var(--p-card)', color: 'var(--p-muted)' }}>
+                <div style={{ width: 18, height: 14, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <motion.span animate={menuOpen ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }} transition={{ duration: 0.32, ease: [0.4, 0, 0.2, 1] }} style={{ display: 'block', height: 2, borderRadius: 2, background: 'currentColor', transformOrigin: 'center' }} />
+                  <motion.span animate={menuOpen ? { opacity: 0, scaleX: 0 } : { opacity: 1, scaleX: 1 }} transition={{ duration: 0.22, ease: 'easeInOut' }} style={{ display: 'block', height: 2, borderRadius: 2, background: 'currentColor' }} />
+                  <motion.span animate={menuOpen ? { rotate: -45, y: -6 } : { rotate: 0, y: 0 }} transition={{ duration: 0.32, ease: [0.4, 0, 0.2, 1] }} style={{ display: 'block', height: 2, borderRadius: 2, background: 'currentColor', transformOrigin: 'center' }} />
                 </div>
-                <p className="text-white/70 text-sm">Tableau de bord occupation</p>
-                <p className="text-white text-[22px] font-bold mt-1 mb-4">{biens.length} bien{biens.length > 1 ? 's' : ''} au total</p>
-                <div className="flex items-center">
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile dropdown */}
+          <AnimatePresence initial={false}>
+            {menuOpen && (
+              <motion.div
+                className="xl:hidden overflow-hidden"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.32, ease: [0.4, 0, 0.2, 1] }}
+              >
+                <div className="border-t pb-4 pt-3" style={{ borderColor: 'var(--p-border)' }}>
+                  <div className="grid grid-cols-4 gap-1">
+                    {NAV_ITEMS.map(item => {
+                      const active = tab === item.key
+                      return (
+                        <button key={item.key}
+                          onClick={() => { setTab(item.key); setMenuOpen(false); setIsScrolled(false); if (item.key === 'messages') refreshNotifications() }}
+                          className="flex flex-col items-center gap-1.5 py-3 rounded-xl text-[11px] font-medium transition-all"
+                          style={active ? { color: BLUE_TX, background: withAlpha(BLUE, '14'), fontWeight: 700 } : { color: 'var(--p-muted)' }}>
+                          {item.icon}
+                          <span className="truncate w-full text-center px-1">{item.label}</span>
+                        </button>
+                      )
+                    })}
+                    <button onClick={() => { logout(); navigate('/login') }}
+                      className="flex flex-col items-center gap-1.5 py-3 rounded-xl text-[11px] font-medium"
+                      style={{ color: 'var(--tx-red)' }}>
+                      <IcLogout />
+                      <span>Déconnexion</span>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </nav>
+      </header>
+
+      {/* ── Content area ── */}
+      <div className="flex-1 overflow-hidden flex flex-col" style={{ paddingTop: '4rem' }}>
+        <div className="flex-1 overflow-hidden flex flex-col">
+        {tab === 'tableau' && (
+          <div className="flex-1 overflow-y-auto overflow-x-hidden" onScroll={(e) => setIsScrolled(e.currentTarget.scrollTop > 50)}>
+            {/* ── Hero photo ── */}
+            <div className="relative overflow-hidden" style={{ minHeight: '380px' }}>
+              <img loading="lazy" src={villaImg} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: 'center 30%' }} />
+              {/* Dégradé sombre — lisibilité texte + fondu vers le fond */}
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, rgba(6,13,26,0.45) 0%, rgba(6,13,26,0.72) 50%, #060D1A 100%)' }} />
+              {/* Accent gold ambiant en haut-gauche */}
+              <div className="absolute -top-10 -left-10 w-72 h-72 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: BLUE }} />
+
+              <div className="relative px-5 md:px-8 xl:px-10 pt-10 pb-12">
+                {/* Eyebrow */}
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-px w-6" style={{ background: 'rgb(255,255,255)' }} />
+                  <p className="text-[10px] font-bold uppercase tracking-[0.32em]" style={{ color: 'rgb(255,255,255)' }}>Espace propriétaire</p>
+                </div>
+
+                <h1 className="text-[32px] md:text-[40px] font-black tracking-tight leading-[1.1] text-white">
+                  Bonjour{me?.prenom ? `,` : ''}<br />
+                  {me?.prenom && <span style={{ color: 'rgb(255,255,255)' }}>{me.prenom}</span>}
+                  {!me?.prenom && <span style={{ color: 'rgb(255,255,255)' }}>Propriétaire</span>}
+                </h1>
+                <p className="text-[12px] mt-2.5 text-white/50 font-medium">
+                  {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+
+                {/* Mini stats pills glassmorphic */}
+                <div className="flex gap-3 mt-7 overflow-x-auto scrollbar-hide pb-0.5">
                   {[
-                    { label: 'Total',      value: biens.length },
-                    { label: 'Publiés',    value: approuves },
-                    { label: 'En attente', value: enAttente },
-                    { label: 'Rejetés',    value: rejetes },
-                  ].map((s, i) => (
-                    <div key={s.label} className="flex items-center flex-1">
-                      {i > 0 && <div className="w-px h-8 mr-3" style={{ background: 'rgba(255,255,255,0.2)' }} />}
-                      <div>
-                        <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.6)' }}>{s.label}</p>
-                        <p className="text-white font-bold text-base">{s.value}</p>
-                      </div>
+                    { icon: <IcHome />, value: `${biens.length}`, label: 'Biens', color: BLUE_TX },
+                    { icon: <IcStar />, value: `${me?.nb_etoiles ?? 0}`, label: 'Étoiles', color: 'var(--tx-amber)' },
+                    { icon: <IcShield />, value: `${score}`, label: 'Score', color: 'var(--tx-green)' },
+                    { icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><circle cx="12" cy="12" r="3"/></svg>, value: `${totalVues}`, label: 'Vues', color: '#A78BFA' },
+                  ].map(s => (
+                    <div key={s.label} className="flex-shrink-0 flex flex-col items-center gap-1.5 rounded-2xl px-4 py-3"
+                      style={{ background: 'rgba(6,13,26,0.55)', border: `1px solid ${withAlpha(BLUE, '28')}`, backdropFilter: 'blur(16px)', minWidth: '68px', minHeight: '44px' }}>
+                      <span style={{ color: s.color }}>{s.icon}</span>
+                      <p className="font-black text-[18px] leading-none text-white">{s.value}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.4)' }}>{s.label}</p>
                     </div>
                   ))}
                 </div>
               </div>
+            </div>
 
-              {/* Biens récents */}
-              <div className="flex items-center justify-between mb-3.5">
-                <p className="text-[17px] font-bold text-text-dark">Mes biens récents</p>
-                <button onClick={() => setTab('biens')} className="text-sm font-semibold" style={{ color: BLUE }}>Voir tout</button>
-              </div>
-              {loading ? (
-                [1,2].map(n => <div key={n} className="h-20 bg-white rounded-xl animate-pulse mb-2.5" />)
-              ) : biens.length === 0 ? (
-                <div className="bg-white rounded-xl p-5 text-center shadow-sm">
-                  <p className="text-text-grey text-sm">Aucun bien publié pour l'instant</p>
+            {/* ── Contenu sous le hero ── */}
+            <div className="px-5 md:px-8 xl:px-10 py-6">
+              <AnimatedGroup
+                preset="blur-slide"
+                stagger={0.08}
+                variants={{
+                  container: { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08 } } },
+                  item: { hidden: { opacity: 0, scale: 0.92, y: 16 }, visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 22 } } },
+                }}>
+
+              {loadError && (
+                <div className="rounded-2xl mb-5 border" style={{ background: 'var(--p-card)', borderColor: 'var(--p-border)' }}>
+                  <ErrorState palette="proprietaire" title="Impossible de charger votre tableau de bord" hint="Certaines informations peuvent être manquantes. Vérifiez votre connexion et réessayez." onRetry={() => loadData()} className="py-6" />
                 </div>
-              ) : biens.slice(0, 3).map(b => {
-                const { label, color } = statutBien(b.statut_moderation || 'en_attente')
-                const loc = b.localisation
-                const adresse = loc ? `${loc.quartier ? loc.quartier + ', ' : ''}${loc.ville || ''}` : '—'
-                return (
-                  <div key={b.id} className="bg-white rounded-[14px] p-3.5 mb-2.5 flex items-center gap-3 shadow-sm">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: BLUE + '15' }}>
-                      <span style={{ color: BLUE }}><IcHome /></span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-text-dark text-sm">{typeLabel(b.type)}</p>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-text-grey"><IcPin /></span>
-                        <p className="text-xs text-text-grey truncate">{adresse}</p>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="font-bold text-text-dark text-xs">{fmtPrix(b.prix)}</p>
-                      <span className="mt-1 inline-block px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: color + '20', color }}>{label}</span>
+              )}
+
+              {/* Alert loyers */}
+              {(loyersImpayesCount > 0 || loyersEnRetardCount > 0) && (
+                <button onClick={() => setTab('loyers')} aria-label="Voir les loyers en retard"
+                  className="w-full flex items-center gap-3 rounded-2xl mb-5 p-4 border text-left cursor-pointer transition-all duration-200 hover:scale-[1.01] hover:shadow-[0_4px_16px_rgba(244,67,54,0.12)]"
+                  style={{ background: 'rgba(244,67,54,0.031)', borderColor: 'rgba(244,67,54,0.157)', minHeight: '56px' }}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(244,67,54,0.094)' }}>
+                    <span style={{ color: 'var(--c-red-material)' }}><IcClock /></span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm" style={{ color: 'var(--p-text)' }}>
+                      {loyersImpayesCount > 0 && `${loyersImpayesCount} loyer${loyersImpayesCount > 1 ? 's' : ''} impayé${loyersImpayesCount > 1 ? 's' : ''}`}
+                      {loyersImpayesCount > 0 && loyersEnRetardCount > 0 && ' · '}
+                      {loyersEnRetardCount > 0 && `${loyersEnRetardCount} en retard`}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--p-muted)' }}>Nécessite votre attention</p>
+                  </div>
+                  <span style={{ color: 'var(--p-muted)' }}><IcChevron /></span>
+                </button>
+              )}
+
+              {/* ── Actions rapides — chips scrollables ── */}
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--p-muted)' }}>Actions rapides</p>
+                <LiveIndicator label={lastUpdatedLabel} refreshing={refreshing} />
+              </div>
+              <div className="flex gap-2.5 mb-7 overflow-x-auto scrollbar-hide pb-1">
+                {[
+                  { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>, color: BLUE_TX, label: 'Publier un bien', action: () => navigate('/nouveau-bien') },
+                  { icon: <IcCal />, color: 'var(--tx-blue)', label: 'Réservations', badge: reservationsEnAttente, action: () => setTab('reservations') },
+                  { icon: <IcPayments />, color: 'var(--tx-green)', label: 'Loyers', badge: loyersImpayesCount + loyersEnRetardCount, action: () => setTab('loyers') },
+                  { icon: <IcMessagesNav />, color: 'var(--c-accent)', label: 'Messages', badge: unreadMessages, action: () => { setTab('messages'); refreshNotifications() } },
+                  { icon: <IcWallet />, color: '#A78BFA', label: 'Portefeuille', action: () => setTab('portefeuille') },
+                ].map(q => (
+                  <button key={q.label} onClick={q.action} aria-label={q.label}
+                    className="relative flex-shrink-0 flex items-center gap-2.5 rounded-full px-4 py-2.5 transition-all duration-200"
+                    style={{ background: hoveredOverviewEl === `chip-${q.label}` ? withAlpha(q.color, '22') : withAlpha(q.color, '12'), border: `1.5px solid ${withAlpha(q.color, '30')}`, minHeight: '44px', boxShadow: hoveredOverviewEl === `chip-${q.label}` ? `0 4px 16px ${withAlpha(q.color, '25')}` : 'none' }}
+                    onMouseEnter={() => setHoveredOverviewEl(`chip-${q.label}`)}
+                    onMouseLeave={() => setHoveredOverviewEl(null)}>
+                    <span style={{ color: q.color }}>{q.icon}</span>
+                    <span className="text-[12px] font-semibold whitespace-nowrap" style={{ color: 'var(--p-text)' }}>{q.label}</span>
+                    {(q.badge ?? 0) > 0 && (
+                      <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[9px] font-black text-white" style={{ background: 'var(--c-red-ios)' }}>
+                        {(q.badge ?? 0) > 9 ? '9+' : q.badge}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* ── Carte portefeuille biens — PropertyStatsCard ── */}
+              <div className="sticky top-0 z-10 flex items-center justify-between py-2 mb-2 -mx-1 px-1" style={{ background: 'var(--p-deep)' }}>
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--p-muted)' }}>Mes biens</p>
+                <span className="text-[13px] font-black" style={{ color: BLUE_TX }}>{biens.length}</span>
+              </div>
+              <div className="mb-5 mx-auto w-full px-2" style={{ maxWidth: '72rem' }}>
+                <PropertyStatsCard
+                  title="Mes biens"   
+                  total={biens.length}
+                  dark={isDark}
+                  stats={[
+                    { label: 'Total',       value: biens.length,   color: BLUE_TX      },
+                    { label: 'Publiés',     value: biensApprouves, color: 'var(--tx-green)' },
+                    { label: 'En attente',  value: biensEnAttente, color: 'var(--tx-amber)' },
+                    { label: 'Rejetés',     value: biensRejetes,   color: 'var(--tx-red)' },
+                  ]}
+                />
+              </div>
+
+              {/* Activité — visites + occupation */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-20 mb-7">
+                {[
+                  {
+                    label: 'Visites ce mois',
+                    value: `${visitesMoisActuel}`,
+                    sub: hasVisites && visitesTrendPct !== undefined
+                      ? `${visitesTrendPct >= 0 ? '↑' : '↓'} ${Math.abs(visitesTrendPct)}% vs mois dernier`
+                      : '— vs mois dernier',
+                    subColor: hasVisites && visitesTrendPct !== undefined
+                      ? (visitesTrendPct >= 0 ? 'var(--c-success)' : 'var(--c-danger)')
+                      : undefined,
+                    color: 'var(--c-purple-dark)',
+                    icon: <IcCal />,
+                  },
+                  {
+                    label: "Taux d'occupation",
+                    value: `${tauxOccupation}%`,
+                    sub: `${biensOccupes} / ${biens.length} biens`,
+                    color: 'var(--tx-green)',
+                    icon: <IcHome />,
+                  },
+                ].map(card => (
+                  <div key={card.label}>
+                    <div className="flex flex-col items-center text-center rounded-2xl px-5 py-4 sm:px-8 sm:py-5 flex-shrink-0 w-[42vw] sm:w-auto"
+                      style={{
+                        background: 'var(--p-card)',
+                        border: '1px solid var(--p-border)',
+                        boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.06)',
+                      }}>
+                      <span className="flex items-center justify-center w-10 h-10 rounded-full mb-2.5 flex-shrink-0"
+                        style={{ background: withAlpha(card.color, '18'), color: card.color }}>
+                        {card.icon}
+                      </span>
+                      <p className="font-black text-[26px] leading-none mb-1" style={{ color: card.color }}>
+                        {card.value}
+                      </p>
+                      <p className="text-[11px] font-semibold mb-1" style={{ color: 'var(--p-muted)' }}>
+                        {card.label}
+                      </p>
+                      {card.sub && (
+                        <p className="text-[10px]" style={{ color: card.subColor ?? 'var(--p-muted)' }}>
+                          {card.sub}
+                        </p>
+                      )}
                     </div>
                   </div>
+                ))}
+              </div>
+
+              {/* ── 5 derniers biens en carousel ── */}
+              {biens.length > 0 && (() => {
+                const recentBiens = [...biens]
+                  .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+                  .slice(0, 5)
+                return (
+                  <div className="mb-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--p-muted)' }}>Mes biens récents</p>
+                      <button onClick={() => setTab('biens')} className="inline-flex min-h-[44px] items-center px-2 -mr-2 text-xs font-bold" style={{ color: BLUE_TX }}>Voir tout →</button>
+                    </div>
+                    <div
+                      ref={carousel2Ref}
+                      role="region" aria-label="Mes biens récents" tabIndex={0}
+                      className="flex gap-5 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory"
+                      {...carousel2Props}
+                    >
+                      {recentBiens.map(b => {
+                        const { label: sLabel, color: sColor } = statutBien(b.statut_moderation || 'en_attente')
+                        const loc = b.localisation
+                        const adresse = loc ? `${loc.quartier ? loc.quartier + ', ' : ''}${loc.ville || ''}` : '—'
+                        const cover = b.photos?.find(p => p.is_cover) || b.photos?.[0]
+                        const compo = bienComposition(b)
+                        return (
+                          <div
+                            key={b.id}
+                            className="flex-shrink-0 snap-start group rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(75,107,255,0.14)] w-[85%] md:w-[calc(50%-10px)] lg:w-[calc(33.333%-14px)]"
+                            style={{ background: 'var(--p-card)', border: '1px solid var(--p-border)' }}
+                            role="button" tabIndex={0}
+                            onKeyDown={onActivateKey(() => navigate(`/proprietaire/biens/${b.id}`, { state: { fromDashboard: true } }))}
+                            onClick={() => navigate(`/proprietaire/biens/${b.id}`, { state: { fromDashboard: true } })}
+                          >
+                            <div className="relative overflow-hidden" style={{ height: 160 }}>
+                              {cover?.url
+                                ? <img loading="lazy" {...imageDeCouverture([cover], undefined, '(max-width: 768px) 85vw, 400px')} alt={bienLabel(b)} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                : <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, #1a2a4a, ${withAlpha(BLUE, '30')})` }}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth={1.2} className="w-10 h-10 opacity-40"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                                  </div>
+                              }
+                              <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 55%)' }} />
+                              <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-bold text-white" style={{ background: sColor }}>{sLabel}</span>
+                              <span className="absolute top-3 right-3 px-2 py-1 rounded-full text-[10px] font-bold" style={{ background: 'rgba(0,0,0,0.50)', color: 'rgb(255,255,255)' }}>
+                                {b.transaction === 'location' ? 'À louer' : 'À vendre'}
+                              </span>
+                              <div className="absolute bottom-3 left-3 right-3">
+                                <p className="text-white font-black text-[15px] leading-none drop-shadow">
+                                  {fmtPrix(b.prix)}{suffixeUnite(b) && <span className="text-[11px] font-normal text-white/70"> {suffixeUnite(b)}</span>}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="p-3">
+                              <p className="font-bold text-[14px] leading-tight mb-1.5 truncate" style={{ color: 'var(--p-text)' }}>{bienLabel(b)}</p>
+                              <div className="flex items-center gap-1 mb-2">
+                                <span style={{ color: 'var(--p-muted)' }}><IcPin /></span>
+                                <span className="text-xs truncate" style={{ color: 'var(--p-muted)' }}>{adresse}</span>
+                              </div>
+                              {compo && (
+                                <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'var(--p-border)', color: 'var(--p-muted)' }}>{compo}</span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {recentBiens.length > 3 && (
+                      <div className="flex justify-center items-center gap-2 mt-4">
+                        {autoplayAvailable && <CarouselPauseToggle paused={carousel2Paused} onToggle={toggleCarousel2} subject="mes biens récents" />}
+                        {recentBiens.map((_, i) => (
+                          <button
+                            key={i}
+                            aria-label={`Afficher le bien ${i + 1} sur ${recentBiens.length}`}
+                            aria-current={carousel2Idx === i}
+                            onClick={() => {
+                              const el = carousel2Ref.current
+                              if (!el) return
+                              const cardW = el.scrollWidth / recentBiens.length
+                              el.scrollTo({ left: cardW * i, behavior: 'smooth' })
+                              setCarousel2Idx(i)
+                            }}
+                            style={{ width: carousel2Idx === i ? 20 : 8, height: 8, borderRadius: 4, background: carousel2Idx === i ? 'var(--c-brand)' : 'rgba(75,107,255,0.25)', transition: 'all 0.3s ease', border: 'none', cursor: 'pointer', padding: 0 }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )
-              })}
-              <div className="h-24" />
+              })()}
+
+              </AnimatedGroup>
+              <div className="h-24 xl:h-8" />
             </div>
           </div>
         )}
-        {tab === 'biens'        && <MesBiensTab />}
-        {tab === 'reservations' && <ReservationsTab />}
-        {tab === 'creneaux'     && <CreneauxTab />}
-        {tab === 'loyers'       && <LoyersTab />}
-        {tab === 'portefeuille' && <PortefeuilleTab />}
-        {tab === 'profil'       && <ProfilTab user={me} />}
+        {tab === 'biens'        && <MesBiensTab onScrolled={setIsScrolled} />}
+        {tab === 'reservations' && <ReservationsTab biens={biens} onScrolled={setIsScrolled} onOpenMessages={(convId, draft) => openTab('messages', convId, draft)} />}
+        {tab === 'messages'      && <MessagesTab initialConvId={messagesInitConvId} initialDraft={messagesInitDraft} />}
+        {tab === 'notifications' && <NotificationsTab onOpenTab={openTab} />}
+        {tab === 'loyers'        && <LoyersTab onScrolled={setIsScrolled} />}
+        {tab === 'portefeuille' && <PortefeuilleTab onOpenTransactions={() => setTab('transactions')} />}
+        {tab === 'transactions' && <TransactionsTab />}
+        {tab === 'roles'        && <RolesTab />}
+        {tab === 'profil'       && <ProfilTab user={me} biens={biens} visites={visites} onOpenTransactions={() => setTab('transactions')} onOpenRoles={() => setTab('roles')} onScrolled={setIsScrolled} />}
+      </div>
+
       </div>
 
       {/* FAB */}
       {(tab === 'tableau' || tab === 'biens') && (
-        <div className="absolute bottom-20 right-4 z-20">
+        <div className="xl:hidden fixed bottom-20 right-4 md:bottom-24 md:right-8 z-20">
           <button onClick={() => navigate('/nouveau-bien')}
-            className="flex items-center gap-2 px-5 py-3.5 rounded-full text-white font-bold shadow-lg active:scale-95 transition-transform"
-            style={{ background: BLUE, boxShadow: `0 4px 15px ${BLUE}60` }}>
-            <IcPlus /> Nouveau bien
+            className="flex items-center gap-2 px-5 py-3.5 rounded-full font-bold shadow-lg active:scale-95 md:hover:-translate-y-0.5 transition-transform"
+            style={{ background: 'linear-gradient(135deg, var(--c-brand), var(--c-primary))', color: 'rgb(255,255,255)', boxShadow: '0 4px 15px rgba(75,107,255,0.45)' }}>
+            <IcPlus /> Publier un bien
           </button>
         </div>
       )}
 
-      {/* Bottom Nav */}
-      <div className="flex-shrink-0 bg-white border-t border-divider" style={{ boxShadow: '0 -4px 20px rgba(0,0,0,0.08)' }}>
-        <div className="flex items-center justify-around px-2 py-2">
-          {TABS.map(t => {
-            const active = tab === t.key
-            return (
-              <button key={t.key} onClick={() => setTab(t.key)}
-                className="flex items-center gap-1.5 px-2 py-2 rounded-[14px] transition-all"
-                style={active ? { background: BLUE + '18' } : {}}>
-                <span style={{ color: active ? BLUE : '#9E9E9E' }}>{t.icon}</span>
-                {active && <span className="text-xs font-bold" style={{ color: BLUE }}>{t.label}</span>}
-              </button>
-            )
-          })}
+      {/* Bottom Nav — fixed, mobile & tablet */}
+      <div className="xl:hidden fixed bottom-0 left-0 right-0 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <div style={{ background: 'var(--p-surface)', borderTop: '1px solid var(--p-border)', boxShadow: '0 -4px 24px rgba(0,0,0,0.30)' }}>
+          <div className="flex items-center justify-around px-2 py-2 max-w-lg mx-auto">
+            {/* 4 onglets principaux + « Plus » (barre limitée à 5 entrées, comme l'app mobile) */}
+            {TABS.filter(t => PRIMARY_TABS.includes(t.key)).map(t => {
+              const active = tab === t.key
+              return (
+                <button key={t.key} onClick={() => setTab(t.key)}
+                  aria-label={t.label} aria-current={active ? 'page' : undefined}
+                  className="relative flex flex-col items-center gap-0.5 px-2 py-1.5 min-w-[60px] rounded-[14px] transition-all"
+                  style={active ? { background: withAlpha(BLUE, '14') } : {}}>
+                  <span style={{ color: active ? BLUE_TX : 'var(--p-muted)' }}>{t.icon}</span>
+                  <span className="text-[10px] font-semibold" style={{ color: active ? 'var(--p-accent-text)' : 'var(--p-muted)' }}>{t.label}</span>
+                </button>
+              )
+            })}
+            {(() => {
+              const moreActive = !PRIMARY_TABS.includes(tab)
+              const moreBadge = unreadMessages + unreadAlertes
+              return (
+                <button onClick={() => setMoreOpen(true)} aria-haspopup="dialog" aria-expanded={moreOpen}
+                  aria-label={'Plus' + (moreBadge > 0 ? `, ${moreBadge} non lu${moreBadge > 1 ? 's' : ''}` : '')}
+                  className="relative flex flex-col items-center gap-0.5 px-2 py-1.5 min-w-[60px] rounded-[14px] transition-all"
+                  style={moreActive ? { background: withAlpha(BLUE, '14') } : {}}>
+                  <span className="relative" style={{ color: moreActive ? 'var(--p-accent-text)' : 'var(--p-muted)' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+                    {moreBadge > 0 && (
+                      <span className="absolute -top-1.5 -right-2 flex items-center justify-center min-w-[15px] h-[15px] px-1 rounded-full text-[9px] font-bold text-white" style={{ background: 'var(--c-red-ios)' }}>
+                        {moreBadge > 9 ? '9+' : moreBadge}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-[10px] font-semibold" style={{ color: moreActive ? BLUE_TX : 'var(--p-muted)' }}>
+                    {moreActive ? (NAV_ITEMS.find(n => n.key === tab)?.label ?? 'Plus') : 'Plus'}
+                  </span>
+                </button>
+              )
+            })()}
+          </div>
         </div>
       </div>
+
+      <ModalSheet open={moreOpen} onClose={() => setMoreOpen(false)} label="Plus d'options">
+        <div className="rounded-t-3xl p-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]" style={{ background: 'var(--p-surface)' }}>
+          <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: 'var(--p-border)' }} />
+          <ul className="grid grid-cols-3 gap-2">
+            {NAV_ITEMS.filter(n => !PRIMARY_TABS.includes(n.key)).map(n => {
+              const badge = n.key === 'messages' ? unreadMessages : n.key === 'notifications' ? unreadAlertes : 0
+              const active = tab === n.key
+              return (
+                <li key={n.key}>
+                  <button
+                    onClick={() => { setTab(n.key); setMoreOpen(false); if (n.key === 'messages' || n.key === 'notifications') refreshNotifications() }}
+                    className="relative w-full flex flex-col items-center gap-1.5 py-3.5 rounded-2xl text-xs font-semibold"
+                    style={{ background: active ? withAlpha(BLUE, '14') : 'var(--p-bg, transparent)', color: active ? BLUE_TX : 'var(--p-text)', border: '1px solid var(--p-border)' }}>
+                    <span style={{ color: active ? BLUE_TX : 'var(--p-muted)' }}>{n.icon}</span>
+                    {n.label}
+                    {badge > 0 && (
+                      <span className="absolute top-2 right-3 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white" style={{ background: 'var(--c-red-ios)' }}>
+                        {badge > 9 ? '9+' : badge}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      </ModalSheet>
     </div>
   )
 }

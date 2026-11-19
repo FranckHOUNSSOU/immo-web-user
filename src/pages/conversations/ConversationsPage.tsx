@@ -1,201 +1,318 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { avatarGradient } from '../../theme/illustrations'
 import { Outlet, useNavigate, useMatch } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
+import { Home } from 'lucide-react'
+import { useAuth } from '../../context/useAuth'
+import { useTheme } from '../../context/useTheme'
 import { chatApi } from '../../api/chatApi'
+import { usePageTitle } from '../../utils/usePageTitle'
+import { apiMessage } from '../../utils/apiMessage'
+import { asChatConversations, type ChatConversation, type ChatUser } from '../../types/chat-ui'
 
-const SIDEBAR = {
-  background: 'rgba(255,255,255,0.60)',
-  backdropFilter: 'blur(40px) saturate(160%)',
-  WebkitBackdropFilter: 'blur(40px) saturate(160%)',
-  borderRight: '1px solid rgba(0,0,0,0.07)',
-} as const
+type Interlocuteur = ChatUser | null | undefined
 
-function formatTime(dateStr: string): string {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  const now = new Date()
-  const isToday =
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  if (isToday) {
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  }
-  return `${d.getDate()}/${d.getMonth() + 1}`
+function displayName(o: Interlocuteur) { return o?.prenom || o?.pseudonyme || o?.nom || 'Contact' }
+function initiale(o: Interlocuteur) { return (displayName(o)[0] || '?').toUpperCase() }
+function roleLabel(o: Interlocuteur) {
+  if (o?.role === 'commercial') return 'Conseiller Refuge'
+  // Lot 13 : ancien rôle démarcheur, abandonné ; l'interlocuteur reste identifiable.
+  if (o?.role === 'demarcheur') return 'Agent immobilier'
+  if (o?.role === 'proprietaire') return 'Propriétaire'
+  if (o?.role === 'locataire') return 'Locataire'
+  if (o?.role === 'prospect') return 'Client'
+  return null
 }
-
-function getInitiale(name: string): string {
-  return name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?'
+function fmtTime(iso?: string) {
+  if (!iso) return ''
+  const d = new Date(iso), diff = Date.now() - d.getTime()
+  if (diff < 86_400_000) return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  if (diff < 604_800_000) return d.toLocaleDateString('fr-FR', { weekday: 'short' })
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 }
 
 export default function ConversationsPage() {
+  usePageTitle('Conversations')
   const { user } = useAuth()
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
   const navigate = useNavigate()
-  const chatMatch = useMatch('/conversations/:id')
-  const activeId = chatMatch?.params?.id ? Number(chatMatch.params.id) : null
+  const match = useMatch('/conversations/:id')
+  const activeId = match?.params?.id ? Number(match.params.id) : null
 
-  const [convs, setConvs] = useState<any[]>([])
+  const [convs, setConvs] = useState<ChatConversation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
+  const [search, setSearch] = useState('')
+  const [hoveredConvId, setHoveredConvId] = useState<number | null>(null)
 
   useEffect(() => {
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     chatApi.conversations()
-      .then(d => setConvs(Array.isArray(d) ? d : d.data || []))
-      .catch(e => setError(e?.message || 'Erreur'))
+      .then(d => setConvs(asChatConversations(Array.isArray(d) ? d : d.data || [])))
+      .catch(e => setError(apiMessage(e) || 'Impossible de charger vos conversations.'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [reloadKey])
 
-  const getOther = (conv: any) => {
-    if (!user) return null
-    if (conv.prospect?.id !== user.id) return conv.prospect
-    return conv.proprietaire || conv.demarcheur
+  const getOther = (c: ChatConversation): ChatUser | null => {
+    if (!user || !Array.isArray(c.participants)) return null
+    return c.participants.find(p => p.id !== user.id) || c.participants[0] || null
   }
 
-  const ConvList = () => {
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return convs
+    return convs.filter(c => {
+      const o = getOther(c)
+      return `${o?.prenom || ''} ${o?.nom || ''} ${o?.pseudonyme || ''}`.toLowerCase().includes(q)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convs, search, user])
+
+  /* ── Design tokens ── */
+  // Backgrounds
+  const bgPage     = isDark ? '#0F1117' : 'var(--c-fog)'
+  const bgSidebar  = isDark ? '#161820' : 'rgb(255,255,255)'
+  const bgChatArea = isDark ? '#0F1117' : '#EEF0F7'
+  // Text
+  const textPrimary   = isDark ? 'var(--c-mist)' : 'var(--c-ink-900)'
+  const textSecondary = isDark ? 'rgba(232,233,240,0.60)' : 'var(--tx-muted)'
+  const textMuted     = isDark ? 'rgba(232,233,240,0.60)' : 'var(--c-slate)'
+  // Borders & dividers
+  const border    = isDark ? 'rgba(255,255,255,0.07)' : 'var(--c-line)'
+  const divider   = isDark ? 'rgba(255,255,255,0.05)' : '#F0F1F4'
+  // Interactive
+  const activeBg  = isDark ? 'rgba(75,107,255,0.14)' : 'rgba(75,107,255,0.08)'
+  const hoverBg   = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.025)'
+  // Search field
+  const searchBg  = isDark ? 'rgba(255,255,255,0.06)' : 'var(--c-fog)'
+  const searchBdr = isDark ? 'rgba(255,255,255,0.09)' : 'var(--c-line)'
+  // Empty state
+  const emptyIconBg = isDark ? 'rgba(75,107,255,0.12)' : 'rgba(75,107,255,0.08)'
+
+  /* ── Liste conversations ── */
+  const renderConvList = () => {
     if (loading) return (
       <div className="p-4 space-y-2">
-        {[1, 2, 3].map(n => <div key={n} className="skeleton h-[72px] rounded-xl" />)}
+        {[1,2,3,4,5].map(n => (
+          <div key={n} className="flex items-center gap-3 px-2 py-2.5">
+            <div className="skeleton w-12 h-12 rounded-full flex-shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="skeleton h-3 w-28 rounded-full" />
+              <div className="skeleton h-2.5 w-44 rounded-full" />
+            </div>
+          </div>
+        ))}
       </div>
     )
-
     if (error) return (
-      <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-        <p className="text-[15px] font-bold text-text-dark mb-2">Impossible de charger</p>
-        <p className="text-xs text-text-grey mb-4">{error}</p>
-        <button onClick={() => window.location.reload()}
-          className="text-white px-6 py-2.5 rounded-xl text-sm font-bold"
-          style={{ background: 'linear-gradient(135deg,#4B6BFF,#7B4BFF)' }}>
+      <div role="alert" className="flex flex-col items-center justify-center py-16 px-6 text-center gap-4">
+        <p className="text-sm font-semibold" style={{ color: textPrimary }}>{error}</p>
+        <button onClick={() => setReloadKey(k => k + 1)}
+          className="px-5 py-2.5 rounded-xl text-white text-sm font-semibold cursor-pointer transition-opacity hover:opacity-90"
+          style={{ background: 'linear-gradient(135deg,var(--c-brand),var(--c-violet))' }}>
           Réessayer
         </button>
       </div>
     )
-
-    if (convs.length === 0) return (
-      <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-        <div className="w-16 h-16 rounded-[18px] flex items-center justify-center mb-3"
-          style={{ background: 'rgba(75,107,255,0.1)' }}>
-          <svg className="w-8 h-8 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    if (filtered.length === 0) return (
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: emptyIconBg }}>
+          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="var(--c-brand)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
         </div>
-        <p className="text-sm font-bold text-text-dark mb-1">Aucune conversation</p>
-        <p className="text-xs text-text-grey">Vos échanges apparaîtront ici.</p>
+        <p className="text-sm font-semibold" style={{ color: textPrimary }}>
+          {search ? 'Aucun résultat' : 'Aucune conversation'}
+        </p>
+        <p className="text-xs" style={{ color: textMuted }}>
+          {search ? `Rien pour « ${search} »` : 'Vos échanges apparaîtront ici.'}
+        </p>
       </div>
     )
 
     return (
-      <div>
-        {convs.map((conv, idx) => {
-          const other = getOther(conv)
-          const name = other ? `${other.prenom || ''} ${other.nom || ''}`.trim() || 'Contact' : 'Contact'
-          const lastMsg = conv.last_message
-          const lastContenu = lastMsg?.contenu || conv.lastContenu || (conv.bienType ? "À propos d'un bien" : 'Nouvelle conversation')
-          const unread = conv.unread_count || conv.unreadCount || 0
-          const hasUnread = unread > 0
-          const timeStr = formatTime(lastMsg?.created_at || conv.last_message_at || conv.created_at || '')
-          const isActive = conv.id === activeId
+      <div className="py-1">
+        {filtered.map((conv) => {
+          const other  = getOther(conv)
+          const name   = displayName(other)
+          const role   = roleLabel(other)
+          const last   = conv.dernierMessage
+          const preview = last?.contenu === '__supprime__' ? 'Message supprimé' : (last?.contenu || (conv.bien ? "À propos d'un bien" : "Aucun message pour l'instant"))
+          const unread = conv.nonLus || 0
+          const time   = fmtTime(last?.created_at)
+          const active = conv.id === activeId
 
           return (
-            <div key={conv.id}>
-              <button
-                onClick={() => navigate(`/conversations/${conv.id}`)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 transition-colors text-left"
-                style={{
-                  background: isActive ? 'rgba(75,107,255,0.10)' : 'transparent',
-                  borderLeft: isActive ? '3px solid #4B6BFF' : '3px solid transparent',
-                }}
-              >
-                {other?.photo_profil ? (
-                  <img src={other.photo_profil} alt="" className="w-[46px] h-[46px] rounded-[14px] object-cover flex-shrink-0" />
-                ) : (
-                  <div className="w-[46px] h-[46px] rounded-[14px] flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'linear-gradient(135deg,#4B6BFF,#7B4BFF)' }}>
-                    <span className="text-white font-bold">{getInitiale(name)}</span>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <p className={`text-[13px] truncate ${hasUnread ? 'font-bold text-text-dark' : 'font-semibold text-text-dark'}`}>{name}</p>
-                    {timeStr && (
-                      <p className={`text-[11px] ml-2 flex-shrink-0 ${hasUnread ? 'font-bold' : 'text-text-grey'}`}
-                        style={{ color: hasUnread ? '#4B6BFF' : undefined }}>{timeStr}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <p className={`text-xs truncate flex-1 ${hasUnread ? 'text-text-dark font-medium' : 'text-text-grey'}`}>
-                      {lastContenu}
-                    </p>
-                    {hasUnread && (
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                        style={{ background: '#4B6BFF' }}>
-                        <span className="text-white text-[10px] font-bold">{unread}</span>
-                      </div>
-                    )}
-                  </div>
+            <button key={conv.id}
+              onClick={() => navigate(`/conversations/${conv.id}`)}
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors duration-150 cursor-pointer relative"
+              style={{
+                background: active ? activeBg : hoveredConvId === conv.id ? hoverBg : 'transparent',
+                borderLeft: `3px solid ${active ? 'var(--c-brand)' : 'transparent'}`,
+              }}
+              onMouseEnter={() => { if (!active) setHoveredConvId(conv.id) }}
+              onMouseLeave={() => setHoveredConvId(null)}>
+
+              {/* Avatar + présence */}
+              <div className="relative flex-shrink-0">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center"
+                  style={{ background: avatarGradient(other?.id ?? conv.id) }}>
+                  <span className="text-white font-bold text-[15px]">{initiale(other)}</span>
                 </div>
-              </button>
-              {idx < convs.length - 1 && <div className="h-px bg-divider ml-[67px]" />}
-            </div>
+                {conv.isOnline && (
+                  <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 bg-green-400"
+                    style={{ borderColor: active ? (isDark ? '#1A2030' : '#EBF0FF') : (isDark ? bgSidebar : 'rgb(255,255,255)') }} />
+                )}
+              </div>
+
+              {/* Contenu */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                  <p className="text-[13.5px] truncate" style={{ color: textPrimary, fontWeight: unread ? 700 : 600 }}>
+                    {name}
+                  </p>
+                  <span className="text-caption flex-shrink-0 tabular-nums" style={{ color: unread ? 'var(--c-brand)' : textMuted }}>
+                    {time}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[12.5px] truncate flex-1" style={{
+                    color: unread ? textSecondary : textMuted,
+                    fontWeight: unread ? 500 : 400,
+                    fontStyle: last?.contenu === '__supprime__' ? 'italic' : 'normal',
+                  }}>
+                    {preview}
+                  </p>
+                  {unread > 0 && (
+                    <span className="min-w-[20px] h-5 px-1.5 rounded-full text-white text-micro font-bold flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'var(--c-brand)' }}>
+                      {unread > 9 ? '9+' : unread}
+                    </span>
+                  )}
+                </div>
+                {conv.bien && (
+                  <span className="flex items-center gap-1 mt-0.5 text-micro truncate" style={{ color: textMuted }}>
+                    <Home aria-hidden="true" className="w-3 h-3 flex-shrink-0" />
+                    {conv.bien.titre || conv.bien.localisation?.quartier || `Bien #${conv.bien.id}`}
+                  </span>
+                )}
+                {role && (
+                  <span className="inline-block mt-1 text-micro font-semibold px-2 py-0.5 rounded-full" style={{
+                    background: isDark ? 'rgba(75,107,255,0.15)' : 'rgba(75,107,255,0.08)',
+                    color: 'var(--tx-blue)',
+                  }}>
+                    {role}
+                  </span>
+                )}
+              </div>
+            </button>
           )
         })}
       </div>
     )
   }
 
-  return (
-    <div className="min-h-full">
+  /* ── Sidebar panel ── */
+  const renderSidePanel = () => (
+    <div className="flex flex-col h-full" style={{ background: bgSidebar, borderRight: `1px solid ${border}` }}>
+      {/* Header */}
+      <div className="px-5 pt-5 pb-4 flex-shrink-0" style={{ borderBottom: `1px solid ${divider}` }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[18px] font-extrabold tracking-tight" style={{ color: textPrimary }}>Messages</h2>
+          {!loading && convs.length > 0 && (
+            <span className="px-2.5 py-0.5 rounded-full text-caption font-bold text-white"
+              style={{ background: 'linear-gradient(135deg,var(--c-brand),var(--c-violet))' }}>
+              {convs.length}
+            </span>
+          )}
+        </div>
+        {/* Barre de recherche */}
+        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl transition-all"
+          style={{ background: searchBg, border: `1px solid ${searchBdr}` }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ color: textMuted, flexShrink: 0 }}>
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher…"
+            className="flex-1 min-w-0 bg-transparent border-none outline-none text-[13px]"
+            style={{ color: textPrimary }} />
+          {search && (
+            <button aria-label="Effacer la recherche" onClick={() => setSearch('')} className="cursor-pointer" style={{ color: textMuted }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto scrollbar-auto">{renderConvList()}</div>
+    </div>
+  )
 
-      {/* ── MOBILE ── */}
+  return (
+    <div className="min-h-full" style={{ background: bgPage }}>
+
+      {/* ── MOBILE : liste seule ou fil actif ── */}
       <div className="md:hidden">
         {activeId === null ? (
-          <div>
-            <div className="px-4 pt-12 pb-3"
-              style={{ background: 'rgba(245,245,247,0.88)', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
-              <h1 className="text-lg font-bold text-text-dark">Messages</h1>
+          <div style={{ background: bgSidebar, minHeight: '100dvh' }}>
+            {/* Header mobile */}
+            <div className="px-5 pt-[calc(72px+12px)] pb-3 flex items-center justify-between sticky top-[72px] z-10"
+              style={{ background: bgSidebar, borderBottom: `1px solid ${divider}` }}>
+              <h1 className="text-[20px] font-extrabold tracking-tight" style={{ color: textPrimary }}>Messages</h1>
+              {!loading && convs.length > 0 && (
+                <span className="px-2.5 py-0.5 rounded-full text-caption font-bold text-white"
+                  style={{ background: 'linear-gradient(135deg,var(--c-brand),var(--c-violet))' }}>
+                  {convs.length}
+                </span>
+              )}
             </div>
-            <ConvList />
+            {/* Recherche mobile */}
+            <div className="px-4 py-3" style={{ borderBottom: `1px solid ${divider}` }}>
+              <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl"
+                style={{ background: searchBg, border: `1px solid ${searchBdr}` }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ color: textMuted, flexShrink: 0 }}>
+                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder="Rechercher une conversation…"
+                  className="flex-1 bg-transparent outline-none text-[13px]"
+                  style={{ color: textPrimary }} />
+                {search && (
+                  <button aria-label="Effacer la recherche" onClick={() => setSearch('')} className="cursor-pointer" style={{ color: textMuted }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+            {renderConvList()}
           </div>
-        ) : (
-          <Outlet />
-        )}
+        ) : <Outlet />}
       </div>
 
-      {/* ── DESKTOP : deux panneaux ── */}
-      <div className="hidden md:flex" style={{ height: 'calc(100vh - 64px)' }}>
-
-        {/* Panneau gauche — liste */}
-        <div className="w-[320px] flex-shrink-0 flex flex-col" style={SIDEBAR}>
-          <div className="px-5 pt-5 pb-4 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
-            <h2 className="text-xl font-bold text-text-dark">Messages</h2>
-            {!loading && <p className="text-xs text-text-grey mt-0.5">{convs.length} conversation{convs.length > 1 ? 's' : ''}</p>}
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            <ConvList />
-          </div>
-        </div>
-
-        {/* Panneau droit — chat actif ou placeholder */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {activeId !== null ? (
-            <Outlet />
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
-              <div className="w-24 h-24 rounded-[24px] flex items-center justify-center mb-5"
-                style={{ background: 'rgba(75,107,255,0.08)' }}>
-                <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="#4B6BFF" strokeWidth={1.3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      {/* ── DESKTOP : sidebar + zone chat ── */}
+      <div className="hidden md:flex" style={{ height: 'calc(100dvh - 72px)' }}>
+        <div className="w-[300px] lg:w-[320px] xl:w-[340px] flex-shrink-0">{renderSidePanel()}</div>
+        <div className="flex-1 flex flex-col overflow-hidden" style={{ background: bgChatArea }}>
+          {activeId !== null ? <Outlet /> : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-5">
+              <div className="w-20 h-20 rounded-3xl flex items-center justify-center" style={{ background: emptyIconBg }}>
+                <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="var(--c-brand)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
               </div>
-              <p className="text-xl font-bold text-text-dark mb-2">Vos messages</p>
-              <p className="text-text-grey text-sm leading-relaxed max-w-xs">
-                Sélectionnez une conversation dans la liste pour afficher les messages.
-              </p>
+              <div>
+                <p className="text-[16px] font-bold mb-1.5" style={{ color: textPrimary }}>Sélectionnez une conversation</p>
+                <p className="text-[13px] max-w-[220px] mx-auto leading-relaxed" style={{ color: textSecondary }}>
+                  Choisissez un contact à gauche pour afficher les messages.
+                </p>
+              </div>
             </div>
           )}
         </div>
-
       </div>
     </div>
   )

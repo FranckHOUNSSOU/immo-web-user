@@ -1,51 +1,45 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
-import { biensApi } from '../../api/biensApi'
-import { favoritesApi } from '../../api/favoritesApi'
+import { useNavigate } from 'react-router-dom'
+import type { Amenites } from '../../types/amenites'
+import type { Photo, Piece } from '../../types/api'
+import { infosLogementRows, infosTerrainRows, type InfoRow } from '../../utils/amenites'
+import EditBienModal from './EditBienModal'
+import { aFormulaireDedie } from './modifier/formulaireEdition'
+import ShareSheet from '../../components/ShareSheet'
+import { bienTypeLabel } from '../../utils/bienType'
+import { resolveUrl, buildComposition } from './bien-detail/helpers'
+import { useBienDetail } from './bien-detail/useBienDetail'
+import { DetailContent } from './bien-detail/DetailSections'
+import { BottomCta } from './bien-detail/BottomCta'
+import { GalleryMobile, GalleryDesktop } from './bien-detail/Galleries'
+import { SimilairesDesktop, SimilairesMobile } from './bien-detail/Similaires'
+import ErrorState from '../../components/ErrorState'
+import { suffixeUnite } from '../../utils/prix'
+import { nomEtDescription } from '../../utils/guesthouse'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 
-const BACKEND = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1').replace('/api/v1', '') + '/'
-
-function resolveUrl(url: string) {
-  if (!url) return ''
-  if (url.startsWith('http')) return url
-  return BACKEND + url
-}
-
-const TYPE_LABELS: Record<string, string> = {
-  maison: 'Maison', appart_vide: 'Appartement vide',
-  appart_meuble: 'Appartement meublé', guesthouse: 'Guesthouse', terrain: 'Terrain',
-}
-
-export default function BienDetailPage() {
-  const { id } = useParams<{ id: string }>()
+export default function BienDetailPage({ showOwnBack = true }: { showOwnBack?: boolean }) {
   const navigate = useNavigate()
-  const { isLoggedIn } = useAuth()
-  const [bien, setBien] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [photoIdx, setPhotoIdx] = useState(0)
-  const [isFav, setIsFav] = useState(false)
-  const [tab, setTab] = useState<'desc'|'pieces'|'amenites'>('desc')
-
-  useEffect(() => {
-    biensApi.byId(Number(id))
-      .then(d => setBien(d))
-      .catch(() => setError('Bien introuvable'))
-      .finally(() => setLoading(false))
-  }, [id])
-
-  const toggleFav = async () => {
-    if (!isLoggedIn) { navigate('/login'); return }
-    try {
-      if (isFav) { await favoritesApi.remove(Number(id)); setIsFav(false) }
-      else { await favoritesApi.add(Number(id)); setIsFav(true) }
-    } catch (_) {}
-  }
+  // Une seule mise en page est montée : sinon adresse, titres et sections sont dupliqués dans la page
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
+  const {
+    bien, setBien, loading, error, loadError, actionError, recharger, bienTitle, isLoggedIn, isOwnBien,
+    photoIdx, setPhotoIdx,
+    visitesPlanifiees, visitesConfirmees,
+    visiteActive, visiteCancellee, visiteEchouee, annulerBusy,
+    isOccupeLocal, togglingStatut,
+    editing, setEditing, shareOpen, setShareOpen,
+    similaires, partager, toggleDisponibilite, annulerVisite,
+  } = useBienDetail()
 
   if (loading) return (
     <div className="min-h-full flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+  if (loadError && !bien) return (
+    <div className="min-h-full flex flex-col items-center justify-center">
+      <ErrorState title="Impossible de charger ce bien" onRetry={recharger} />
+      <button onClick={() => navigate(-1)} className="text-primary font-semibold text-sm mb-8">Retour</button>
     </div>
   )
   if (error || !bien) return (
@@ -63,226 +57,111 @@ export default function BienDetailPage() {
     </div>
   )
 
-  const photos: any[] = bien.photos || []
-  const allUrls = photos.map((p: any) => resolveUrl(p.url))
+  const photos: Photo[] = bien.photos || []
+  const allUrls = photos.map((p: Photo) => resolveUrl(p.url))
   const isLocation = bien.transaction === 'location'
-  const typeLabel = TYPE_LABELS[bien.type] || bien.type
+  const typeLabel = bienTypeLabel(bien)
+  // Lot 5 : guesthouse et salle se modifient avec le formulaire de création.
+  const modifier = () => (aFormulaireDedie(bien) ? navigate(`/proprietaire/biens/${bien.id}/modifier`) : setEditing(true))
+  /** Titre auto-généré (le bien n'a pas de champ "titre" saisi) : Type — Quartier. */
+  // Guesthouse : son nom (1re ligne de la description) quand il existe
+  const nomGuesthouse = nomEtDescription(bien).nom
+  const title = nomGuesthouse
+    ? `${nomGuesthouse}${bien.localisation?.quartier ? ` — ${bien.localisation.quartier}` : ''}`
+    : bien.localisation?.quartier ? `${typeLabel} — ${bien.localisation.quartier}` : typeLabel
   const prix = Number(bien.prix).toLocaleString('fr-FR')
+  const accentColor = isLocation ? 'var(--c-brand)' : 'var(--c-orange-dark)'
+  const prixPromoNum = bien.prix_promo != null ? Number(bien.prix_promo) : null
+  const hasPromo = prixPromoNum != null && prixPromoNum >= 100 && prixPromoNum < Number(bien.prix)
+  const prixPromo = hasPromo ? prixPromoNum!.toLocaleString('fr-FR') : null
+  const promoPct = hasPromo ? Math.round((1 - prixPromoNum! / Number(bien.prix)) * 100) : 0
 
-  const ameniteLabels: string[] = []
-  const am = bien.amenites
-  if (am) {
-    if (am.cour) ameniteLabels.push('Cour')
-    if (am.arriere_cour) ameniteLabels.push('Arrière-cour')
-    if (am.parking) ameniteLabels.push(am.parking_capacite ? `Parking (${am.parking_capacite} véh.)` : 'Parking')
-    if (am.boyerie) ameniteLabels.push(am.boyerie_type ? `Boyerie (${am.boyerie_type})` : 'Boyerie')
-    if (am.boutique) ameniteLabels.push(am.boutique_position ? `Boutique (${am.boutique_position})` : 'Boutique')
-    if (am.armoires_chambre) ameniteLabels.push('Armoires chambre')
-    if (am.compteur_eau === 'soneb') ameniteLabels.push('Eau SONEB')
-    else if (am.compteur_eau === 'forage') ameniteLabels.push('Forage')
-    if (am.compteur_elec === 'personnel') ameniteLabels.push('Compteur personnel')
-    else if (am.compteur_elec === 'decompte') ameniteLabels.push('Élec. décomptée')
-    if (Array.isArray(am.equipements)) ameniteLabels.push(...am.equipements)
-    if (Array.isArray(am.voisinage)) ameniteLabels.push(...am.voisinage)
-  }
+  const am = bien.amenites as Amenites | null | undefined
+  const voisinageLabels: string[] = am?.voisinage && Array.isArray(am.voisinage) ? am.voisinage : []
+  const logementRows: InfoRow[] = am ? infosLogementRows(am) : []
+  const terrainRows: InfoRow[] = am ? infosTerrainRows(am) : []
+  const composition = buildComposition(bien)
+
+  const chambres = (bien.pieces || []).filter((p: Piece) => p.nom?.toLowerCase().includes('chambre')).length
+  const superficie = bien.details_maison?.superficie || bien.details_terrain?.superficie || 0
+  const nbConsultations = bien.nb_consultations ?? 0
+
+  const modBadge = isOwnBien ? (() => {
+    const mod = bien.statut_moderation || 'en_attente'
+    if (mod === 'approuve')     return { label: 'Publié',       bg: 'var(--c-success)' }
+    if (mod === 'rejete')       return { label: 'Rejeté',       bg: 'var(--c-danger)' }
+    if (mod === 'conditionnel') return { label: 'Conditionnel', bg: 'var(--c-amber-dark)' }
+    return                               { label: 'En attente',  bg: 'var(--c-amber-dark)' }
+  })() : null
 
   return (
-    <div className="min-h-full pb-28 md:pb-0">
+    <div className="min-h-full pb-32 lg:pb-0">
+      {actionError && (
+        <div role="alert" className="fixed inset-x-4 top-4 z-50 mx-auto max-w-md rounded-xl px-4 py-3 text-sm font-semibold text-white" style={{ background: 'var(--c-danger)' }}>
+          {actionError}
+        </div>
+      )}
 
       {/* ── MOBILE header / galerie ── */}
-      <div className="md:hidden relative h-72" style={{ background: 'rgba(0,0,0,0.04)' }}>
-        {allUrls.length > 0 ? (
-          <img src={allUrls[photoIdx]} alt="photo" className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.04)' }}>
-            <svg className="w-20 h-20 text-text-grey/30" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-          </div>
-        )}
-        <button onClick={() => navigate(-1)} className="absolute top-12 left-4 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm">
-          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-        </button>
-        <button onClick={toggleFav} className="absolute top-12 right-4 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm">
-          <svg viewBox="0 0 24 24" fill={isFav ? '#FF6B35' : 'none'} stroke="white" strokeWidth={2} className="w-5 h-5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        </button>
-        {allUrls.length > 1 && (
-          <>
-            <button onClick={() => setPhotoIdx(i => (i - 1 + allUrls.length) % allUrls.length)} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 rounded-full flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <button onClick={() => setPhotoIdx(i => (i + 1) % allUrls.length)} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 rounded-full flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-            </button>
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full font-medium">
-              {photoIdx + 1} / {allUrls.length}
-            </div>
-          </>
-        )}
-      </div>
+      {!isDesktop && <GalleryMobile allUrls={allUrls} photoIdx={photoIdx} setPhotoIdx={setPhotoIdx} altText={bienTitle || 'Photo du bien'} showOwnBack={showOwnBack} onBack={() => navigate(-1)} />}
 
       {/* ── DESKTOP layout ── */}
-      <div className="hidden md:block w-full px-6 md:px-16 py-8">
-        {/* Breadcrumb / back */}
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-text-grey hover:text-primary transition-colors mb-6 group text-sm font-medium">
-          <svg className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-          Retour aux annonces
-        </button>
+      {isDesktop && <div className="w-full px-6 md:px-16 py-8">
+        {showOwnBack && (
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-text-grey hover:text-primary transition-colors mb-6 group text-sm font-medium">
+            <svg className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+            Retour aux annonces
+          </button>
+        )}
 
         <div className="grid grid-cols-[1fr_400px] gap-8 items-start">
-
-          {/* ── Galerie desktop ── */}
           <div>
-            <div className="relative rounded-2xl overflow-hidden" style={{ height: 480, background: 'rgba(0,0,0,0.04)' }}>
-              {allUrls.length > 0 ? (
-                <img src={allUrls[photoIdx]} alt="photo" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.04)' }}>
-                  <svg className="w-24 h-24 text-text-grey/30" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                  </svg>
-                </div>
-              )}
-              {allUrls.length > 1 && (
-                <>
-                  <button onClick={() => setPhotoIdx(i => (i - 1 + allUrls.length) % allUrls.length)} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                  </button>
-                  <button onClick={() => setPhotoIdx(i => (i + 1) % allUrls.length)} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-                  </button>
-                  <div className="absolute bottom-4 right-4 bg-black/60 text-white text-sm px-3 py-1.5 rounded-full font-medium backdrop-blur-sm">
-                    {photoIdx + 1} / {allUrls.length}
-                  </div>
-                </>
-              )}
-            </div>
-            {/* Thumbnails */}
-            {allUrls.length > 1 && (
-              <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
-                {allUrls.map((url, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setPhotoIdx(i)}
-                    className={`flex-shrink-0 w-20 h-14 rounded-xl overflow-hidden border-2 transition-all ${i === photoIdx ? 'border-primary' : 'border-transparent opacity-60 hover:opacity-100'}`}
-                  >
-                    <img src={url} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
+            <GalleryDesktop allUrls={allUrls} photoIdx={photoIdx} setPhotoIdx={setPhotoIdx} altText={bienTitle || 'Photo du bien'} />
 
-            {/* Tabs desktop — description / pièces / amenités */}
             <div className="mt-8">
-              <div className="flex border-b border-divider mb-5">
-                {([['desc','Description'],['pieces','Pièces'],['amenites','Aménités']] as const).map(([k, l]) => (
-                  <button
-                    key={k}
-                    onClick={() => setTab(k)}
-                    className={`px-5 py-3 text-sm font-semibold border-b-2 transition-colors -mb-px ${tab === k ? 'border-primary text-primary' : 'border-transparent text-text-grey hover:text-text-dark'}`}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
-
-              {tab === 'desc' && (
-                <div>
-                  {bien.description ? (
-                    <p className="text-text-grey leading-relaxed text-sm">{bien.description}</p>
-                  ) : (
-                    <p className="text-text-grey text-sm italic">Aucune description disponible.</p>
-                  )}
-                  {(bien.details_maison || bien.details_terrain) && (
-                    <div className="flex flex-wrap gap-3 mt-5">
-                      {bien.details_maison?.superficie > 0 && <Chip label={`${bien.details_maison.superficie} m²`} sub="Superficie" color="#4B6BFF" />}
-                      {bien.details_terrain?.superficie > 0 && <Chip label={`${bien.details_terrain.superficie} m²`} sub="Superficie" color="#4B6BFF" />}
-                      {bien.details_maison?.cloture && <Chip label="Clôturé" color="#4CAF50" />}
-                      {bien.details_appart?.entree_personnelle && <Chip label="Entrée perso." color="#9C27B0" />}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {tab === 'pieces' && (
-                <div>
-                  {bien.pieces && bien.pieces.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-3">
-                      {bien.pieces.map((p: any) => (
-                        <div key={p.id} className="glass-card rounded-xl p-3.5">
-                          <p className="text-sm font-semibold text-text-dark">{p.nom}</p>
-                          {p.surface > 0 && <p className="text-xs text-text-grey mt-0.5">{p.surface} m²</p>}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-text-grey text-sm italic">Aucune pièce renseignée.</p>
-                  )}
-                  {bien.pieces?.some((p: any) => p.photos?.length > 0) && (
-                    <div className="mt-5">
-                      <p className="text-sm font-semibold text-text-dark mb-3">Photos par pièce</p>
-                      <div className="flex gap-3 overflow-x-auto pb-2">
-                        {bien.pieces.flatMap((p: any) =>
-                          (p.photos || []).map((ph: any, i: number) => (
-                            <img key={`${p.id}-${i}`} src={resolveUrl(ph.url)} alt={p.nom} className="w-32 h-24 rounded-xl object-cover flex-shrink-0 hover:scale-105 transition-transform cursor-pointer" />
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {tab === 'amenites' && (
-                <div>
-                  {ameniteLabels.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {ameniteLabels.map((a, i) => (
-                        <span key={i} className="bg-primary/8 text-primary text-sm font-medium px-4 py-2 rounded-full border border-primary/15">
-                          {a}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-text-grey text-sm italic">Aucune aménité renseignée.</p>
-                  )}
-                </div>
-              )}
+              <DetailContent
+                bien={bien} isOwnBien={isOwnBien} isLocation={isLocation}
+                composition={composition} logementRows={logementRows} terrainRows={terrainRows}
+                voisinageLabels={voisinageLabels}
+                visitesPlanifiees={visitesPlanifiees} visitesConfirmees={visitesConfirmees}
+              />
             </div>
           </div>
 
           {/* ── Panneau infos sticky desktop ── */}
           <div className="sticky top-20">
             <div className="glass-card rounded-2xl p-6">
-              {/* Badges */}
-              <div className="flex gap-2 mb-4">
-                <span className={`px-3 py-1.5 rounded-full text-xs font-bold text-white ${isLocation ? 'bg-primary' : 'bg-secondary'}`}>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className={`px-3 py-1.5 rounded-full text-xs font-bold text-white ${isLocation ? 'bg-primary' : 'bg-orange-700'}`}>
                   {isLocation ? 'À LOUER' : 'À VENDRE'}
                 </span>
-                <span className="px-3 py-1.5 rounded-full text-xs font-bold glass-btn text-text-dark">
-                  {typeLabel}
-                </span>
-              </div>
-
-              {/* Prix */}
-              <div className="mb-5">
-                <p className="text-3xl font-bold text-text-dark">
-                  {prix} <span className="text-base font-medium text-text-grey">FCFA{isLocation ? '/mois' : ''}</span>
-                </p>
-                {bien.frais_visite && Number(bien.frais_visite) > 0 && (
-                  <p className="text-sm text-text-grey mt-1.5 flex items-center gap-1.5">
-                    <svg className="w-4 h-4 text-secondary" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Frais de visite : <strong className="text-secondary">{Number(bien.frais_visite).toLocaleString('fr-FR')} FCFA</strong>
-                  </p>
+                <span className="px-3 py-1.5 rounded-full text-xs font-bold glass-btn text-text-dark">{typeLabel}</span>
+                {bien.statut === 'occupe' && (
+                  <span className="px-3 py-1.5 rounded-full text-xs font-bold text-white bg-danger">Occupé</span>
                 )}
+                {modBadge && (
+                  <span className="px-3 py-1.5 rounded-full text-xs font-bold text-white" style={{ background: modBadge.bg }}>
+                    {modBadge.label}
+                  </span>
+                )}
+              </div>
+              <p className="text-xl font-bold text-text-dark mb-3">{title}</p>
+
+              <div className="mb-5">
+                {hasPromo && (
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2 py-0.5 rounded-md text-caption font-bold text-white" style={{ background: 'var(--c-danger)' }}>PROMO -{promoPct}%</span>
+                    <span className="text-sm text-text-grey line-through">{prix} FCFA</span>
+                  </div>
+                )}
+                <p className="text-3xl font-bold" style={{ color: hasPromo ? 'var(--c-danger)' : accentColor }}>
+                  {hasPromo ? prixPromo : prix} <span className="text-base font-medium text-text-grey">FCFA{suffixeUnite(bien)}</span>
+                </p>
               </div>
 
               <div className="h-px bg-divider mb-5" />
 
-              {/* Localisation */}
-              <div className="flex items-start gap-3 mb-5">
+              <div className="flex items-start gap-3 mb-3">
                 <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -291,7 +170,7 @@ export default function BienDetailPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-text-dark">
-                    {bien.localisation?.quartier && `${bien.localisation.quartier}, `}{bien.localisation?.ville}
+                    {bien.localisation?.quartier && `${bien.localisation.quartier}, `}{bien.localisation?.arrondissement && `${bien.localisation.arrondissement}, `}{bien.localisation?.ville}
                   </p>
                   {bien.localisation?.adresse && (
                     <p className="text-xs text-text-grey mt-0.5">{bien.localisation.adresse}</p>
@@ -299,111 +178,119 @@ export default function BienDetailPage() {
                 </div>
               </div>
 
-              {/* Favoris */}
-              <button
-                onClick={toggleFav}
-                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-semibold mb-3 transition-all ${isFav ? 'border-[#FF6B35] text-[#FF6B35] bg-[#FF6B35]/5' : 'border-divider text-text-grey hover:border-primary hover:text-primary'}`}
-              >
-                <svg viewBox="0 0 24 24" fill={isFav ? '#FF6B35' : 'none'} stroke="currentColor" strokeWidth={2} className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-                {isFav ? 'Retiré des favoris' : 'Ajouter aux favoris'}
-              </button>
+              {(chambres > 0 || superficie > 0 || isOwnBien) && (
+                <div className="flex items-center gap-3 mb-5 text-xs text-text-grey">
+                  {chambres > 0 && <span>{chambres} ch</span>}
+                  {superficie > 0 && <span>{superficie} m²</span>}
+                  {isOwnBien && <span className="ml-auto flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    {nbConsultations} vue{nbConsultations !== 1 ? 's' : ''}
+                  </span>}
+                </div>
+              )}
 
-              {/* CTA principal */}
-              <button
-                onClick={() => { if (!isLoggedIn) { navigate('/login'); return } navigate(`/reservation/${bien.id}`) }}
-                className="w-full py-4 rounded-xl font-bold text-white text-sm shadow-btn transition-opacity hover:opacity-90"
-                style={{ background: 'linear-gradient(135deg, #4B6BFF 0%, #7B4BFF 100%)' }}
-              >
-                {isLocation ? 'Réserver une visite' : 'Demander une visite'}
-              </button>
+              <BottomCta
+                isOwnBien={isOwnBien} isOccupeLocal={isOccupeLocal} togglingStatut={togglingStatut}
+                onToggleDisponibilite={toggleDisponibilite}
+                visiteActive={visiteActive} visiteCancellee={visiteCancellee} visiteEchouee={visiteEchouee}
+                onAnnuler={annulerVisite} annulerBusy={annulerBusy}
+                onProposerVisite={() => { if (!isLoggedIn) { sessionStorage.setItem('post_login_redirect', `/reservation/${bien.id}`); navigate('/login'); return } navigate(`/reservation/${bien.id}`) }}
+                onModifier={modifier}
+                fraisVisite={bien.frais_visite}
+              />
 
-              <p className="text-xs text-text-grey text-center mt-3">
-                Sans engagement · Réponse sous 24h
-              </p>
+              <button onClick={partager}
+                className="w-full mt-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-divider text-text-grey hover:text-text-dark hover:border-text-grey/40 transition-colors">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342a2.996 2.996 0 000-2.684m0 2.684a3 3 0 100 2.684m0-2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.368-2.684 3 3 0 00-5.368 2.684zm0 9.632a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                Partager ce bien
+              </button>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* ── MOBILE content ── */}
-      <div className="md:hidden px-4 py-5 space-y-4">
-        <div>
-          <div className="flex gap-2 mb-3">
-            <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${isLocation ? 'bg-primary' : 'bg-secondary'}`}>
-              {isLocation ? 'À LOUER' : 'À VENDRE'}
-            </span>
-            <span className="px-3 py-1 rounded-full text-xs font-bold glass-btn text-text-dark">{typeLabel}</span>
-          </div>
-          <p className="text-2xl font-bold text-text-dark">
-            {prix} FCFA{isLocation && <span className="text-base font-medium text-text-grey">/mois</span>}
-          </p>
-          {bien.frais_visite && Number(bien.frais_visite) > 0 && (
-            <p className="text-sm text-text-grey mt-1">Frais de visite : <strong className="text-secondary">{Number(bien.frais_visite).toLocaleString('fr-FR')} FCFA</strong></p>
+          {/* Biens à proximité */}
+          {!isOwnBien && similaires.length > 0 && (
+            <SimilairesDesktop similaires={similaires} onOpen={bienId => navigate(`/biens/${bienId}`)} />
           )}
         </div>
+        </div>
+      </div>}
 
-        <div className="glass-card rounded-2xl p-4 flex items-start gap-3">
+      {/* ── MOBILE content ── */}
+      {!isDesktop && <div className="px-4 md:px-8 py-5 md:py-8 space-y-4 md:max-w-2xl md:mx-auto">
+        <div>
+          <div className="flex flex-wrap gap-2 mb-3">
+            <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${isLocation ? 'bg-primary' : 'bg-orange-700'}`}>
+              {isLocation ? 'À LOUER' : 'À VENDRE'}
+            </span>
+            <span className="px-3 py-1 rounded-full text-xs font-bold text-text-dark" style={{ background: 'rgba(0,0,0,0.05)' }}>{typeLabel}</span>
+            {bien.statut === 'occupe' && (
+              <span className="px-3 py-1 rounded-full text-xs font-bold text-white bg-danger">Occupé</span>
+            )}
+            {modBadge && (
+              <span className="px-3 py-1 rounded-full text-xs font-bold text-white" style={{ background: modBadge.bg }}>
+                {modBadge.label}
+              </span>
+            )}
+          </div>
+          <h1 className="text-lg font-bold text-text-dark mb-1">{title}</h1>
+          {hasPromo && (
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2 py-0.5 rounded-md text-caption font-bold text-white" style={{ background: 'var(--c-danger)' }}>PROMO -{promoPct}%</span>
+              <span className="text-sm text-text-grey line-through">{prix} FCFA</span>
+            </div>
+          )}
+          <p className="text-2xl font-bold" style={{ color: hasPromo ? 'var(--c-danger)' : accentColor }}>
+            {hasPromo ? prixPromo : prix} FCFA{suffixeUnite(bien) && <span className="text-base font-medium text-text-grey">{suffixeUnite(bien)}</span>}
+          </p>
+        </div>
+
+        <div className="card-soft rounded-2xl p-4 flex items-start gap-3">
           <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
             <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-text-dark">{bien.localisation?.quartier && `${bien.localisation.quartier}, `}{bien.localisation?.ville}</p>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-text-dark">{bien.localisation?.quartier && `${bien.localisation.quartier}, `}{bien.localisation?.arrondissement && `${bien.localisation.arrondissement}, `}{bien.localisation?.ville}</p>
             {bien.localisation?.adresse && <p className="text-xs text-text-grey mt-0.5">{bien.localisation.adresse}</p>}
+            {(chambres > 0 || superficie > 0 || isOwnBien) && (
+              <div className="flex items-center gap-3 mt-1.5 text-xs text-text-grey">
+                {chambres > 0 && <span>{chambres} ch</span>}
+                {superficie > 0 && <span>{superficie} m²</span>}
+                {isOwnBien && <span className="ml-auto">{nbConsultations} vue{nbConsultations !== 1 ? 's' : ''}</span>}
+              </div>
+            )}
           </div>
         </div>
 
-        {bien.description && (
-          <div className="glass-card rounded-2xl p-4">
-            <h3 className="font-bold text-text-dark text-sm mb-2">Description</h3>
-            <p className="text-sm text-text-grey leading-relaxed">{bien.description}</p>
-          </div>
+        <DetailContent
+          bien={bien} isOwnBien={isOwnBien} isLocation={isLocation}
+          composition={composition} logementRows={logementRows} terrainRows={terrainRows}
+          voisinageLabels={voisinageLabels}
+          visitesPlanifiees={visitesPlanifiees} visitesConfirmees={visitesConfirmees}
+        />
+
+        {!isOwnBien && similaires.length > 0 && (
+          <SimilairesMobile similaires={similaires} onOpen={bienId => navigate(`/biens/${bienId}`)} />
         )}
+      </div>}
 
-        {bien.pieces && bien.pieces.length > 0 && (
-          <div className="glass-card rounded-2xl p-4">
-            <h3 className="font-bold text-text-dark text-sm mb-3">Pièces ({bien.pieces.length})</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {bien.pieces.map((p: any) => (
-                <div key={p.id} className="glass-card rounded-xl p-3">
-                  <p className="text-sm font-semibold text-text-dark">{p.nom}</p>
-                  {p.surface > 0 && <p className="text-xs text-text-grey">{p.surface} m²</p>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+      {/* ── Barre CTA fixe (mobile/tablette) ── */}
+      {!isDesktop && <div className="fixed bottom-0 left-0 right-0 z-[60] bg-white border-t border-divider px-5 py-3 safe-bottom">
+        <BottomCta
+          isOwnBien={isOwnBien} isOccupeLocal={isOccupeLocal} togglingStatut={togglingStatut}
+          onToggleDisponibilite={toggleDisponibilite}
+          visiteActive={visiteActive} visiteCancellee={visiteCancellee} visiteEchouee={visiteEchouee}
+          onAnnuler={annulerVisite} annulerBusy={annulerBusy}
+          onProposerVisite={() => { if (!isLoggedIn) { sessionStorage.setItem('post_login_redirect', `/reservation/${bien.id}`); navigate('/login'); return } navigate(`/reservation/${bien.id}`) }}
+          onModifier={modifier}
+          fraisVisite={bien.frais_visite}
+        />
+      </div>}
 
-        {ameniteLabels.length > 0 && (
-          <div className="glass-card rounded-2xl p-4">
-            <h3 className="font-bold text-text-dark text-sm mb-3">Aménités</h3>
-            <div className="flex flex-wrap gap-2">
-              {ameniteLabels.map((a, i) => (
-                <span key={i} className="bg-primary/8 text-primary text-xs font-semibold px-3 py-1.5 rounded-full border border-primary/15">{a}</span>
-              ))}
-            </div>
-          </div>
-        )}
+      {editing && (
+        <EditBienModal bien={bien} onClose={() => setEditing(false)}
+          onSaved={updated => { setBien(prev => ({ ...prev, ...updated })); setEditing(false) }} />
+      )}
 
-        {/* CTA inline — au-dessus du BottomNav dans le scroll */}
-        <button
-          onClick={() => { if (!isLoggedIn) { navigate('/login'); return } navigate(`/reservation/${bien.id}`) }}
-          className="w-full py-4 rounded-xl font-bold text-white shadow-btn"
-          style={{ background: 'linear-gradient(135deg, #4B6BFF 0%, #7B4BFF 100%)' }}
-        >
-          {isLocation ? 'Réserver une visite' : 'Demander une visite'}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function Chip({ label, sub, color }: { label: string; sub?: string; color: string }) {
-  return (
-    <div className="rounded-xl px-4 py-2.5 text-center" style={{ background: color + '15', border: `1px solid ${color}30` }}>
-      <p className="text-sm font-bold" style={{ color }}>{label}</p>
-      {sub && <p className="text-xs text-text-grey mt-0.5">{sub}</p>}
+      {shareOpen && <ShareSheet bien={bien} onClose={() => setShareOpen(false)} />}
     </div>
   )
 }

@@ -1,0 +1,83 @@
+import { useEffect, useState } from 'react'
+import { useAuth } from '../context/useAuth'
+import { pushSupported, subscribeToPush, PUSH_MOMENT_EVENT } from '../lib/push'
+
+const DISMISS_KEY = 'rg_push_dismissed'
+
+export default function PushPrompt() {
+  const { isLoggedIn } = useAuth()
+  const [show, setShow] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!isLoggedIn || !pushSupported()) return
+
+    if (Notification.permission === 'granted') {
+      // Abonnement push facultatif : un échec ne doit rien afficher (réessayé à la prochaine ouverture)
+      subscribeToPush().catch(() => {})
+      return
+    }
+    if (Notification.permission !== 'default') return
+    if (localStorage.getItem(DISMISS_KEY) === 'true') return
+
+    // Plus de fenêtre au bout de 45 s : on propose quand la personne vient d'agir
+    // (demande de visite, premier message), c'est-à-dire quand les alertes ont un sens pour elle.
+    const onMoment = () => setShow(true)
+    window.addEventListener(PUSH_MOMENT_EVENT, onMoment)
+    return () => window.removeEventListener(PUSH_MOMENT_EVENT, onMoment)
+  }, [isLoggedIn])
+
+  const activate = async () => {
+    setBusy(true)
+    // Un abonnement refusé ou en échec se traite comme « non activé » : le bandeau se referme selon la permission
+    const ok = await subscribeToPush().catch(() => false)
+    setBusy(false)
+    if (ok || Notification.permission !== 'default') setShow(false)
+  }
+
+  const dismiss = () => {
+    localStorage.setItem(DISMISS_KEY, 'true')
+    setShow(false)
+  }
+
+  if (!show) return null
+
+  return (
+    <div role="dialog" aria-modal="false" aria-label="Activer les notifications push"
+      className="fixed left-4 right-4 md:left-auto md:right-6 md:w-96 z-[70] rounded-2xl p-4 flex items-start gap-3 anim-scale-in"
+      style={{
+        // Lot 9 : au-dessus de la barre du bas, quelle que soit sa hauteur (zone sûre comprise).
+        bottom: 'calc(var(--bottom-nav-h, 0px) + 16px)',
+        background: 'rgba(26,26,46,0.92)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        border: '1px solid rgba(255,255,255,0.12)',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+      }}
+    >
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(75,107,255,0.2)' }}>
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="#7B9CFF" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-white font-bold text-sm">Activer les notifications</p>
+        <p className="text-white/60 text-xs mt-0.5 mb-3">Soyez prévenu des demandes de visite, confirmations et messages, même app fermée.</p>
+        <div className="flex gap-2">
+          <button onClick={activate} disabled={busy}
+            className="px-3.5 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-60"
+            style={{ background: 'linear-gradient(135deg,var(--c-brand),var(--c-violet))' }}>
+            {busy ? 'Activation…' : 'Activer'}
+          </button>
+          <button onClick={dismiss} className="px-3.5 py-2 rounded-lg text-xs font-semibold text-white/60">
+            Plus tard
+          </button>
+        </div>
+      </div>
+      <button onClick={dismiss} aria-label="Fermer" className="text-white/40 flex-shrink-0">
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  )
+}

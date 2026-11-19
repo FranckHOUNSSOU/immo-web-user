@@ -1,22 +1,49 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        primary:       '#4B6BFF',
-        'primary-d':   '#3A5AEE',
+        brand:         '#4160F2',
+        'brand-soft':  '#9DB0FF',
+        'ink-muted':   '#6E6E73',
+        'ink-faint':   '#A0A0A8',
+        primary:       '#3A5AEE',
+        'primary-d':   '#2E4CD4',
         'primary-l':   'rgba(75,107,255,0.12)',
         secondary:     '#FF6B35',
         'secondary-l': 'rgba(255,107,53,0.12)',
         'app-bg':      '#F5F5F7',
         'surface-g':   '#FFFFFF',
         'text-dark':   '#1D1D1F',
-        'text-grey':   '#6E6E73',
+        'text-grey':   '#5E5E63',
         divider:       'rgba(0,0,0,0.08)',
         success:       '#34C759',
         warning:       '#FF9800',
-        danger:        '#FF3B30',
+        danger:        '#C81E15',
+        // Proprio dark navy/gold theme
+        'navy-950':    '#060D1A',
+        'navy-900':    '#0B1C30',
+        'navy-800':    '#112440',
+        'navy-700':    '#1A3355',
+        'gold-400':    '#D4A847',
+        'gold-300':    '#E2C070',
+        'gold-200':    '#F0D898',
+        'proprio-text': '#F0EDE8',
+        'proprio-muted': '#8A9BB5',
+        // Palette « proprio » : suit les variables --p-* (marine par défaut, claire sous .proprio-light)
+        'p-deep':      'var(--p-deep)',
+        'p-surface':   'var(--p-surface)',
+        'p-card':      'var(--p-card)',
+        'p-border':    'var(--p-border)',
+        'p-text':      'var(--p-text)',
+        'p-muted':     'var(--p-muted)',
+      },
+      // Échelle de textes compacts (remplace text-[9px]/[10px]/[11px] écrits en dur)
+      fontSize: {
+        micro:   '10px',
+        caption: '11px',
       },
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'sans-serif'],

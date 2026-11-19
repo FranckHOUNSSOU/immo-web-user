@@ -1,12 +1,62 @@
-import { Outlet } from 'react-router-dom'
+import { useRef, useCallback, useLayoutEffect } from 'react'
+import { Outlet, useLocation, useNavigationType } from 'react-router-dom'
 import TopNav from './TopNav'
 import BottomNav from './BottomNav'
+import PushPrompt from './PushPrompt'
+import { ErrorBoundary } from './ErrorBoundary'
+import ScrollFloatButtons from './ScrollFloatButtons'
+import { useScrolled } from '../context/useScrolled'
+import { masquerBarreNavigation } from '../utils/barreNavigation'
+import { useTheme } from '../context/useTheme'
+
+const HIDE_TOPNAV_PREFIXES: string[] = []
+// Pages qui gèrent leur propre scroll interne (pas de overflow-y-auto sur le layout)
+const OWN_SCROLL_PREFIXES = ['/conversations']
 
 export default function MainLayout() {
-  return (
-    <div className="flex flex-col min-h-dvh" style={{ background: '#F5F5F7' }}>
+  const location = useLocation()
+  const { scrolled, setScrolled } = useScrolled()
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Lot 9 : formulaires de publication et d'édition plein écran, sans barres de navigation.
+  const hideChrome = masquerBarreNavigation(location.pathname)
+  const hideTopNav = hideChrome || HIDE_TOPNAV_PREFIXES.some(p => location.pathname === p || location.pathname.startsWith(p + '/'))
+  const ownScroll  = OWN_SCROLL_PREFIXES.some(p => location.pathname === p || location.pathname.startsWith(p + '/'))
+  const navigationType = useNavigationType()
 
-      {/* Orbes pastel Liquid Glass — sur fond clair, couleurs vives traversent le verre */}
+  // Le conteneur de défilement est partagé par toutes les pages : sans remise à zéro, une nouvelle
+  // page s'ouvrait à la position de la précédente (contenu coupé sous l'en-tête). Le retour
+  // arrière (POP) est laissé à useScrollRestoration ; un changement de filtres (?…) ne remonte pas.
+  useLayoutEffect(() => {
+    if (navigationType === 'POP') return
+    scrollRef.current?.scrollTo({ top: 0 })
+    setScrolled(false)
+  }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setScrolled(e.currentTarget.scrollTop > 40)
+
+    // Scrollbar auto-hide : ajoute la classe pendant le scroll, retire après 800ms
+    const el = e.currentTarget
+    el.classList.add('is-scrolling')
+    if (scrollTimer.current) clearTimeout(scrollTimer.current)
+    scrollTimer.current = setTimeout(() => el.classList.remove('is-scrolling'), 800)
+  }, [setScrolled])
+
+  return (
+    <div className="flex flex-col h-dvh overflow-hidden" style={{ background: isDark ? '#0F0F14' : '#F5F5F7' }}>
+      {/* Lien d'évitement clavier — visible uniquement au focus */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-semibold focus:text-white"
+        style={{ background: 'var(--c-primary)' }}
+      >
+        Aller au contenu principal
+      </a>
+
+      {/* Orbes pastel Liquid Glass */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="orb absolute top-[-20%] right-[-10%] w-[900px] h-[900px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(100,130,255,0.22) 0%, rgba(100,130,255,0.06) 50%, transparent 70%)' }} />
@@ -20,18 +70,66 @@ export default function MainLayout() {
           style={{ background: 'radial-gradient(circle, rgba(255,190,60,0.10) 0%, transparent 70%)', animationDelay: '12s' }} />
       </div>
 
-      {/* Header desktop */}
-      <TopNav />
+      {!hideTopNav && <TopNav />}
 
-      {/* Contenu */}
-      <div className="flex-1 overflow-y-auto pb-20 md:pb-0 md:pt-16 relative z-10">
-        <Outlet />
-      </div>
+      {/* Scrim sous la navbar pill — efface la transition brusque au scroll */}
+      {!hideTopNav && scrolled && (
+        <div
+          className="fixed top-0 left-0 right-0 z-[55] pointer-events-none"
+          style={{ height: 96, background: `linear-gradient(to bottom, ${isDark ? '#0F0F14' : '#F5F5F7'} 0%, transparent 100%)` }}
+        />
+      )}
 
-      {/* Bottom nav mobile */}
-      <div className="md:hidden relative z-50">
-        <BottomNav />
-      </div>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        ref={ownScroll ? undefined : scrollRef}
+        className={`flex-1 min-h-0 relative outline-none ${ownScroll ? 'overflow-hidden' : 'overflow-y-auto scrollbar-auto'} ${hideTopNav ? '' : 'md:pt-[72px]'}`}
+        // Lot 9 : réserve la hauteur réelle de la barre du bas (zone sûre comprise), 0 sans barre.
+        style={ownScroll ? undefined : { paddingBottom: 'var(--bottom-nav-h, 0px)' }}
+        onScroll={ownScroll ? undefined : handleScroll}
+      >
+        <ErrorBoundary compact resetKey={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
+      </main>
+
+      {!hideChrome && (
+        <div className="md:hidden relative z-50">
+          <BottomNav />
+        </div>
+      )}
+
+      {/* Boutons flottants haut/bas — desktop uniquement */}
+      {!hideChrome && <ScrollFloatButtons scrollRef={scrollRef} />}
+
+      {/* Téléchargement de l'app Android (APK) — bouton flottant, visible si URL configurée */}
+      {!hideChrome && import.meta.env.VITE_APK_URL && (
+        <a
+          href={import.meta.env.VITE_APK_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          download
+          className="fixed z-50 left-4 flex items-center gap-2 px-3.5 py-2.5 rounded-full shadow-lg text-sm font-semibold transition-transform hover:scale-105"
+          style={{
+            bottom: 'calc(var(--bottom-nav-h, 0px) + 16px)',
+            background: isDark ? 'rgba(30,30,40,0.85)' : 'rgba(255,255,255,0.9)',
+            color: 'var(--tx-blue)',
+            border: '1px solid rgba(100,130,255,0.3)',
+            backdropFilter: 'blur(12px)',
+          }}
+          title="Télécharger l'application Android"
+        >
+          <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          <span className="hidden sm:inline">Télécharger l'app</span>
+        </a>
+      )}
+
+      <PushPrompt />
     </div>
   )
 }
